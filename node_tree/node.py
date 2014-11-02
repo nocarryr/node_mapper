@@ -285,10 +285,9 @@ class NodeBounds(BaseObject):
         p_pos = pos.parent_position
         if p_pos is None:
             return
-        p_bounds = p_pos.bounds
         d = {}
         for key in ['x', 'y']:
-            d[key] = (p_bounds.outer_bounds[key] / 2) + (self.outer_bounds[key] / 2) + p_bounds.x
+            d[key] = self.outer_bounds[key] * getattr(pos, key)
             setattr(self, key, d[key])
         self.left = d['x'] - (self.width / 2)
         self.top = d['y'] + (self.height / 2)

@@ -151,6 +151,7 @@ class NodePosition(BaseObject):
             self.all_positions = self.parent_position.all_positions
             self.bind(in_conflict=self.parent_position.on_child_conflict)
         self.all_positions.add(self)
+        self.bounds = NodeBounds(node=self.node, position=self)
         self.node.bind(parent=self.on_node_parent_changed)
     @property
     def parent_position(self):
@@ -254,6 +255,52 @@ class NodePosition(BaseObject):
         return str(self)
     def __str__(self):
         return '%s position (%s, %s)' % (self.node, self.x, self.y)
+    
+class NodeBounds(BaseObject):
+    _Properties = dict(
+        left={'default':-50.}, 
+        top={'default':25.}, 
+        x={'default':0.}, 
+        y={'default':0.}, 
+        width={'default':100.}, 
+        height={'default':50.}, 
+        outer_bounds={'default':{'x':150., 'y':75.}}, 
+    )
+    def __init__(self, **kwargs):
+        super(NodeBounds, self).__init__(**kwargs)
+        self.node = kwargs.get('node')
+        self.position = kwargs.get('position')
+        self.position.bind(x=self.on_position_changed,
+                           y=self.on_position_changed, 
+                           in_conflict=self.on_position_conflict_changed)
+        for attr in ['width', 'height', 'padding']:
+            if attr in kwargs:
+                if attr == 'padding':
+                    for key, val in kwargs.get('padding').iteritems():
+                        self.padding[key] = val
+                setattr(self, attr, kwargs.get(attr))
+        self.refresh()
+    def refresh(self):
+        pos = self.position
+        p_pos = pos.parent_position
+        if p_pos is None:
+            return
+        p_bounds = p_pos.bounds
+        d = {}
+        for key in ['x', 'y']:
+            d[key] = (p_bounds.outer_bounds[key] / 2) + (self.outer_bounds[key] / 2) + p_bounds.x
+            setattr(self, key, d[key])
+        self.left = d['x'] - (self.width / 2)
+        self.top = d['y'] + (self.height / 2)
+        print self.x, self.y
+    def on_position_changed(self, **kwargs):
+        if self.position.in_conflict:
+            return
+        self.refresh()
+    def on_position_conflict_changed(self, **kwargs):
+        if kwargs.get('value') is False:
+            self.refresh()
+        
         
 def test():
     p = Node(name='root')

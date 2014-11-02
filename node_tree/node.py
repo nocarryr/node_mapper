@@ -173,26 +173,21 @@ class NodePosition(BaseObject):
             i = n.Index
             child_group = n.parent.child_nodes
             all_index = sorted(child_group.indexed_items.keys())
-            print all_index
             i = all_index.index(i)
             child_len = len(all_index)
-            mid_point = child_len / 2.
+            mid_point = (child_len / 2.)
             self.center_y = mid_point
-            if i <= mid_point:
-                y = mid_point + i
-            else:
-                y = mid_point - i
-            return y
+            return i - mid_point
         if n.is_root:
-            x = 0
-            y = 0
+            x = 0.
+            y = 0.
         else:
-            x = 1
+            x = 1.
             y = calc_index()
         d = {}
         d['x'] = self.relative_x != x
         d['y'] = self.relative_y != y
-        print 'x: %s, y: %s' % (x, y)
+        #print '%s x: %s, y: %s, center_y: %s' % (self.node.name, x, y, self.center_y)
         self.relative_x = x
         self.relative_y = y
         return d
@@ -206,6 +201,7 @@ class NodePosition(BaseObject):
                 offset_y = offset_y * -1.
         self.x = p.x + self.relative_x
         self.y = p.y + self.relative_y + offset_y
+        #print 'calc_absolute: ', str(self)
         self.check_conflicts()
     def check_conflicts(self):
         x = self.x
@@ -254,9 +250,15 @@ class NodePosition(BaseObject):
         if p is not None:
             self.offset_y = 0.
             self.bind(in_conflict=p.on_child_conflict)
+    def __repr__(self):
+        return str(self)
+    def __str__(self):
+        return '%s position (%s, %s)' % (self.node, self.x, self.y)
         
 def test():
     p = Node(name='root')
     p.add_child(name='child1')
     p.add_child(name='child2')
+    p.add_child(name='child3')
+    p.add_child(name='child3')
     return p

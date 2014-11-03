@@ -2,6 +2,42 @@ from kivy.clock import Clock
 from kivy.uix.button import Button as KvButton
 from node_mapper.nomadic_recording_lib.Bases import BaseObject
 
+class NodeSelection(BaseObject):
+    signals_to_register = ['selected', 'node_added']
+    def __init__(self, **kwargs):
+        super(NodeSelection, self).__init__(**kwargs)
+        self.all_nodes = {}
+        self.node_selected = None
+    def add_node(self, node):
+        self.all_nodes[node.id] = node
+        self.emit('node_added', node=node)
+        #self.bind(node_added=node.on_new_node)
+        node.bind(selected=self.on_node_selected, 
+                  delete=self.on_node_delete)
+    def on_node_selected(self, **kwargs):
+        node = kwargs.get('obj')
+        value = kwargs.get('value')
+        changed = False
+        if value and node != self.node_selected:
+            self.node_selected = node
+            changed = True
+        elif node == self.node_selected:
+            self.node_selected = None
+            node = None
+            changed = True
+        if changed:
+            self.emit('selected', node=node, value=value)
+    def on_node_delete(self, **kwargs):
+        node = kwargs.get('obj')
+        self.unbind(node)
+        node.unbind(self)
+        if node.id in self.all_nodes:
+            del self.all_nodes[node.id]
+        if node == self.node_selected:
+            self.node_selected = None
+            self.emit('selected', node=None, value=False)
+        
+        
 class NodeButton(BaseObject):
     _Properties = dict(
         selected={'default':False}, 
@@ -18,6 +54,11 @@ class NodeButton(BaseObject):
         self.root_widget = rw
         super(NodeButton, self).__init__(**kwargs)
         self.node = kwargs.get('node')
+        if self.node.is_root:
+            self.node_selection = NodeSelection()
+        else:
+            self.node_selection = self.parent.node_selection
+        self.node_selection.add_node(self)
         self.node.bind(name=self.refresh_text, 
                        pre_delete=self.on_node_pre_delete)
         self.node.bounds.bind(x=self.refresh_geom, 
@@ -44,6 +85,14 @@ class NodeButton(BaseObject):
         self.children[child.id] = child
         ## TODO: bind some events and stuff
         return child
+    def build_debug_text(self):
+        d = {}
+        d['position'] = {}
+        for key in ['x', 'y', 'relative_x', 'relative_y']:
+            d['position'][key] = getattr(self.node.position, key)
+        d['bounds'] = dict(zip(['x', 'y'], [getattr(self.node.bounds, key) for key in ['x', 'y']]))
+        d['index'] = self.node.Index
+        return str(d)
     def refresh_text(self, **kwargs):
         if self.widget is None:
             return
@@ -75,6 +124,12 @@ class NodeButton(BaseObject):
             self.node.collapsed = True
     def on_long_touch(self):
         pass
+    def on_other_node_selected(self, **kwargs):
+        if kwargs.get('value'):
+            return
+        if kwargs.get('obj') == self:
+            return
+        self.selected = False
         
 class Button(KvButton):
     def __init__(self, **kwargs):
@@ -106,6 +161,8 @@ class Button(KvButton):
         for key, val in self.node_pos_to_widget_pos().iteritems():
             setattr(self, key, val)
     def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            return False
         touch.grab(self)
         self._touch_count += 1
         if not touch.is_double_tap:
@@ -121,6 +178,6 @@ class Button(KvButton):
                 self.node_button.on_single_tap()
             touch.ungrab(self)
             return True
-        return super(Button, self).on_touch_up(touch)
+        return False
     def long_touch(self, dt):
         self.node_button.on_long_touch()

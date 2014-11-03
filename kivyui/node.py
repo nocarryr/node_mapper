@@ -1,5 +1,6 @@
 from kivy.clock import Clock
 from kivy.uix.button import Button as KvButton
+from kivy.uix.textinput import TextInput
 from node_mapper.nomadic_recording_lib.Bases import BaseObject
 
 class NodeSelection(BaseObject):
@@ -133,7 +134,7 @@ class NodeButton(BaseObject):
         else:
             self.node.collapsed = not self.node.collapsed
     def on_long_touch(self):
-        pass
+        editor = NodeEditor(node_button=self)
     def on_other_node_selected(self, **kwargs):
         if kwargs.get('value') is False:
             return
@@ -194,3 +195,25 @@ class Button(KvButton):
         return False
     def long_touch(self, dt):
         self.node_button.on_long_touch()
+    
+class NodeEditor(TextInput):
+    def __init__(self, **kwargs):
+        self.node_button = kwargs.get('node_button')
+        node = self.node_button.node
+        button = self.node_button.widget
+        kwargs.setdefault('center_x', button.center_x)
+        kwargs.setdefault('center_y', button.center_y)
+        kwargs.setdefault('width', button.width)
+        kwargs.setdefault('height', button.height)
+        kwargs.setdefault('text', node.name)
+        kwargs.setdefault('focus', True)
+        kwargs.setdefault('multiline', False)
+        super(NodeEditor, self).__init__(**kwargs)
+        self.node_button.root_widget.add_widget(self)
+    def on_text_validate(self):
+        self.node_button.node.text = self.text
+    def on_focus(self, instance, value, *args):
+        super(NodeEditor, self).on_focus(instance, value, *args)
+        if value is False:
+            self.parent.remove_widget(self)
+            

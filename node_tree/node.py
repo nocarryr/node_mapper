@@ -1,6 +1,5 @@
-from . import Bases
-BaseObject = Bases.BaseObject
-setID = Bases.misc.setID
+from node_mapper.nomadic_recording_lib.Bases import BaseObject
+from node_mapper.nomadic_recording_lib.Bases.misc import setID
 
 class Node(BaseObject):
     _Properties = dict(
@@ -12,7 +11,7 @@ class Node(BaseObject):
         updating_child_positions={'default':False}, 
     )
     _ChildGroups = dict(child_nodes={'child_class':'__self__'})
-    signals_to_register = ['position_changed']
+    signals_to_register = ['position_changed', 'pre_delete']
     def __init__(self, **kwargs):
         super(Node, self).__init__(**kwargs)
         self.id = setID(kwargs.get('id'))
@@ -31,6 +30,7 @@ class Node(BaseObject):
             self.nodes_flat = self.root_node.nodes_flat
         self.nodes_flat[self.id] = self
         self.position = NodePosition(**pkwargs)
+        self.bounds = self.position.bounds
         self.child_nodes.bind(child_update=self.on_child_nodes_update)
         self.position.bind(x=self.on_position_changed, 
                            y=self.on_position_changed, 
@@ -41,6 +41,7 @@ class Node(BaseObject):
             return self
         return self.parent.root_node
     def unlink(self):
+        self.emit('pre_delete')
         if self.id in self.nodes_flat:
             del self.nodes_flat[self.id]
         self.child_nodes.clear()

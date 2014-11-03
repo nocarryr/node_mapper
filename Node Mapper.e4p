@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric5 project file for project Node Mapper -->
-<!-- Saved: 2014-10-30, 12:02:26 -->
+<!-- Saved: 2014-11-03, 11:26:21 -->
 <!-- Copyright (C) 2014 ,  -->
 <Project version="5.1">
   <Language></Language>
@@ -206,6 +206,10 @@
     <Source>nomadic_recording_lib/__init__.py</Source>
     <Source>node_tree/node.py</Source>
     <Source>node_tree/__init__.py</Source>
+    <Source>kivyui/__init__.py</Source>
+    <Source>test.py</Source>
+    <Source>kivyui/main.py</Source>
+    <Source>kivyui/node.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

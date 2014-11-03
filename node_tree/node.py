@@ -175,6 +175,7 @@ class NodePosition(BaseObject):
             i = n.Index
             child_group = n.parent.child_nodes
             all_index = sorted(child_group.indexed_items.keys())
+            all_index.reverse()
             i = all_index.index(i)
             child_len = len(all_index)
             mid_point = (child_len / 2.)

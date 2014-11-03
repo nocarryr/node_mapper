@@ -12,6 +12,7 @@ class NodeSelection(BaseObject):
         self.all_nodes[node.id] = node
         self.emit('node_added', node=node)
         #self.bind(node_added=node.on_new_node)
+        self.bind(selected=node.on_other_node_selected)
         node.bind(selected=self.on_node_selected, 
                   delete=self.on_node_delete)
     def on_node_selected(self, **kwargs):
@@ -60,6 +61,7 @@ class NodeButton(BaseObject):
             self.node_selection = self.parent.node_selection
         self.node_selection.add_node(self)
         self.node.bind(name=self.refresh_text, 
+                       hidden=self.on_node_hidden, 
                        pre_delete=self.on_node_pre_delete)
         self.node.bounds.bind(x=self.refresh_geom, 
                               y=self.refresh_geom, 
@@ -111,6 +113,14 @@ class NodeButton(BaseObject):
             return
         self.emit('refresh', type='geom')
         setattr(self.widget, attr, ivalue)
+    def on_node_hidden(self, **kwargs):
+        if self.widget is None:
+            return
+        if kwargs.get('value'):
+            self.selected = False
+            self.widget.parent.remove_widget(self.widget)
+        else:
+            self.parent.widget.add_widget(self.widget)
     def on_node_pre_delete(self, **kwargs):
         self.node.unbind(self)
         self.node.bounds.unbind(self)
@@ -121,13 +131,13 @@ class NodeButton(BaseObject):
         if not self.selected:
             self.selected = True
         else:
-            self.node.collapsed = True
+            self.node.collapsed = not self.node.collapsed
     def on_long_touch(self):
         pass
     def on_other_node_selected(self, **kwargs):
-        if kwargs.get('value'):
+        if kwargs.get('value') is False:
             return
-        if kwargs.get('obj') == self:
+        if kwargs.get('node') == self:
             return
         self.selected = False
         
@@ -144,6 +154,7 @@ class Button(KvButton):
             text=node.name, 
         ))
         super(Button, self).__init__(**kwargs)
+        self.node_button.bind(selected=self.on_node_selected)
     def node_pos_to_widget_pos(self, attr=None):
         if attr is None:
             attr = ['x', 'y']
@@ -160,6 +171,8 @@ class Button(KvButton):
     def update_position(self):
         for key, val in self.node_pos_to_widget_pos().iteritems():
             setattr(self, key, val)
+    def on_node_selected(self, **kwargs):
+        self.state = {True:'down', False:'normal'}.get(kwargs.get('value'))
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
             return False

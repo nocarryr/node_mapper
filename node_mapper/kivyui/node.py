@@ -46,7 +46,9 @@ class NodeButton(BaseObject):
     )
     signals_to_register = ['refresh', 'delete']
     def __init__(self, **kwargs):
+        self._adding_node_from_ui = False
         self.widget = None
+        self.with_editor = kwargs.get('with_editor', False)
         self.children = {}
         self.parent = kwargs.get('parent')
         rw = kwargs.get('root_widget')
@@ -70,10 +72,20 @@ class NodeButton(BaseObject):
                               height=self.refresh_geom)
         for child_node in self.node.child_nodes.itervalues():
             self.add_child_node(child_node)
+        self.node.child_nodes.bind(child_update=self.on_node_child_update)
     @property
     def id(self):
         return self.node.id
     def build_all(self):
+        if self.node.init_complete:
+            self._build_all()
+        else:
+            self.node.bind(init_complete=self._build_all)
+    def _build_all(self, **kwargs):
+        if kwargs.get('Property') == 'init_complete':
+            if kwargs.get('value') is False:
+                return
+            self.node.unbind(self._build_all)
         if self.widget is None:
             self.build_widget()
         for child in self.children.itervalues():
@@ -82,14 +94,19 @@ class NodeButton(BaseObject):
         self.widget = Button(node_button=self)
         if self.root_widget is not None:
             self.root_widget.add_widget(self.widget)
+            if self.with_editor:
+                self.add_editor()
         return self.widget
-    def add_child_node(self, node_obj):
-        child = NodeButton(node=node_obj, parent=self)
+    def add_child_node(self, node_obj, **kwargs):
+        kwargs.update(dict(node=node_obj, parent=self))
+        child = NodeButton(**kwargs)
         self.children[child.id] = child
+        if self.widget is not None:
+            child.build_all()
         ## TODO: bind some events and stuff
         return child
     def build_debug_text(self):
-        d = {}
+        d = {'name':self.node.name}
         d['position'] = {}
         for key in ['x', 'y', 'relative_x', 'relative_y']:
             d['position'][key] = getattr(self.node.position, key)
@@ -97,6 +114,7 @@ class NodeButton(BaseObject):
         d['index'] = self.node.Index
         return str(d)
     def refresh_text(self, **kwargs):
+        print 'kvnode refresh: ', kwargs.get('value')
         if self.widget is None:
             return
         self.widget.text = kwargs.get('value')
@@ -114,6 +132,18 @@ class NodeButton(BaseObject):
             return
         self.emit('refresh', type='geom')
         setattr(self.widget, attr, ivalue)
+    def add_editor(self):
+        return NodeEditor(node_button=self)
+    def on_node_child_update(self, **kwargs):
+        mode = kwargs.get('mode')
+        node = kwargs.get('obj')
+        if mode == 'add':
+            ckwargs = {}
+            if self._adding_node_from_ui:
+                ckwargs['with_editor'] = True
+                self._adding_node_from_ui = False
+            self.add_child_node(node, **ckwargs)
+        
     def on_node_hidden(self, **kwargs):
         if self.widget is None:
             return
@@ -121,20 +151,21 @@ class NodeButton(BaseObject):
             self.selected = False
             self.widget.parent.remove_widget(self.widget)
         else:
-            self.parent.widget.add_widget(self.widget)
+            self.root_widget.add_widget(self.widget)
     def on_node_pre_delete(self, **kwargs):
         self.node.unbind(self)
         self.node.bounds.unbind(self)
         self.emit('delete')
     def on_double_tap(self):
-        pass
+        self._adding_node_from_ui = True
+        self.node.add_child()
     def on_single_tap(self):
         if not self.selected:
             self.selected = True
         else:
             self.node.collapsed = not self.node.collapsed
     def on_long_touch(self):
-        editor = NodeEditor(node_button=self)
+        self.add_editor()
     def on_other_node_selected(self, **kwargs):
         if kwargs.get('value') is False:
             return
@@ -145,6 +176,7 @@ class NodeButton(BaseObject):
 class Button(KvButton):
     def __init__(self, **kwargs):
         self._touch_count = 0
+        self._long_touch = False
         self.node_button = kwargs.get('node_button')
         node = self.node_button.node
         bounds = node.bounds
@@ -162,7 +194,7 @@ class Button(KvButton):
         if isinstance(attr, basestring):
             attr = [attr]
         bounds = self.node_button.node.bounds
-        center = dict(zip(['x', 'y'], self.parent.center))
+        center = {'x': 100, 'y':self.parent.center[1]}
         d = {}
         for _attr in attr:
             d['_'.join(['center', _attr])] = int(round(getattr(bounds, _attr))) + center[_attr]
@@ -188,12 +220,14 @@ class Button(KvButton):
             Clock.unschedule(self.long_touch)
             if touch.is_double_tap:
                 self.node_button.on_double_tap()
-            else:
+            elif not self._long_touch:
                 self.node_button.on_single_tap()
+            self._long_touch = False
             touch.ungrab(self)
             return True
         return False
     def long_touch(self, dt):
+        self._long_touch = True
         self.node_button.on_long_touch()
     
 class NodeEditor(TextInput):
@@ -210,10 +244,16 @@ class NodeEditor(TextInput):
         kwargs.setdefault('multiline', False)
         super(NodeEditor, self).__init__(**kwargs)
         self.node_button.root_widget.add_widget(self)
+        button.bind(pos=self.on_button_pos)
+        button.bind(size=self.on_button_size)
     def on_text_validate(self):
-        self.node_button.node.text = self.text
+        print 'editor validate: ', self.text
+        self.node_button.node.name = self.text
     def on_focus(self, instance, value, *args):
         super(NodeEditor, self).on_focus(instance, value, *args)
         if value is False:
             self.parent.remove_widget(self)
-            
+    def on_button_pos(self, instance, value):
+        self.pos = value
+    def on_button_size(self, instance, value):
+        self.size = value

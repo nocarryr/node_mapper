@@ -3,7 +3,6 @@ from kivy.app import App
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 
-from node_mapper.node_tree.node import Node, test
 from node_mapper.kivyui.node import NodeButton
 
 class MainWin(FloatLayout):
@@ -23,6 +22,7 @@ class MainWin(FloatLayout):
         if value is not None:
             self.build_nodes()
     def build_nodes(self):
+        print 'build_nodes'
         w = self.root_button = NodeButton(node=self.root_node, root_widget=self)
         w.node_selection.bind(selected=self.on_node_selected)
         w.build_all()
@@ -40,16 +40,18 @@ class MainWin(FloatLayout):
         
     
 class NodeApp(App):
+    def __init__(self, **kwargs):
+        self._root_node = kwargs.get('root_node')
+        super(NodeApp, self).__init__(**kwargs)
     def build(self):
-        root_node = test()
-        root = MainWin(root_node=root_node)
+        root = MainWin(root_node=self._root_node)
         return root
 
-def launch(interactive=False):
+def launch(interactive=False, **kwargs):
     if interactive:
-        a = InteractiveLauncher(NodeApp())
+        a = InteractiveLauncher(NodeApp(**kwargs))
     else:
-        a = NodeApp()
+        a = NodeApp(**kwargs)
     a.run()
     return a
 if __name__ == '__main__':

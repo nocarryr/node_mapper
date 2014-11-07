@@ -77,6 +77,7 @@ class NodeButton(BaseObject):
     def id(self):
         return self.node.id
     def build_all(self):
+        print self.node, self.node.init_complete
         if self.node.init_complete:
             self._build_all()
         else:

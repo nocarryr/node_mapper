@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
-<!-- eric5 project file for project Node Mapper -->
-<!-- Saved: 2014-11-04, 10:06:52 -->
+<!-- eric project file for project Node Mapper -->
+<!-- Saved: 2014-11-07, 14:14:19 -->
 <!-- Copyright (C) 2014 ,  -->
 <Project version="5.1">
   <Language></Language>
@@ -212,6 +212,7 @@
     <Source>node_mapper/nomadic_recording_lib/web/cgi/getlog.py</Source>
     <Source>node_mapper/nomadic_recording_lib/web/cgi/__init__.py</Source>
     <Source>main.py</Source>
+    <Source>test.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

@@ -237,10 +237,14 @@ class NodePosition(BaseObject):
             self.unbind(p)
         super(NodePosition, self).unlink()
     def bind_sibling(self, sibling):
+        if isinstance(sibling, Node):
+            sibling = sibling.position
         if sibling == self:
             return
         sibling.bind(y=self.on_sibling_y)
     def unbind_sibling(self, sibling):
+        if isinstance(sibling, Node):
+            sibling = sibling.position
         if sibling == self:
             return
         sibling.unbind(self.on_sibling_y)
@@ -283,15 +287,18 @@ class NodePosition(BaseObject):
         if self.node.collapsed:
             self.y_size = 1.
             return
-        self.y_size = float(len(self.node.child_nodes.values()))
+        self.y_size = float(len(self.get_active_children()))
         if self.y_size == 0.:
             self.y_offset = 0.
             return
         for pos in self.walk_positions():
             pos.calc_y_size()
-        y_offset = (self.y_size + 1) / 2.
-        if self.relative_y < 0:
-            y_offset *= -1.
+        if self.relative_y == 0.:
+            y_offset = 0.
+        else:
+            y_offset = (self.y_size) / 2.
+            if self.relative_y < 0:
+                y_offset *= -1.
         self.y_offset = y_offset
     def calc_absolute(self):
         p = self.parent_position
@@ -308,6 +315,7 @@ class NodePosition(BaseObject):
     def on_sibling_y(self, **kwargs):
         if self.working:
             return
+        print '%s on_sibling_y (%s)' % (self.node, kwargs.get('obj').node)
         self.calc_absolute()
     def check_conflicts(self, full_check=False):
         return
@@ -385,6 +393,8 @@ class NodePosition(BaseObject):
             self.bind_sibling(node)
         elif mode == 'remove':
             self.unbind_sibling(node)
+        self.calc_relative()
+        self.calc_absolute()
     def on_node_parent_changed(self, **kwargs):
         p = kwargs.get('value')
         old = kwargs.get('old')
@@ -405,6 +415,8 @@ class NodePosition(BaseObject):
             self.bind(in_conflict=p.position.on_child_conflict, 
                       y_size_max=p.position.on_child_y_size_max, 
                       working=p.position.on_child_working)
+            self.calc_relative()
+            self.calc_absolute()
     def on_own_property_changed(self, **kwargs):
         prop = kwargs.get('Property')
         if prop.name in ['in_conflict', 'working']:

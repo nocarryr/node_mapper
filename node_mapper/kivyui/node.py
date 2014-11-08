@@ -203,6 +203,8 @@ class Button(KvButton):
             return d.values()[0]
         return d
     def update_position(self):
+        if self.parent is None:
+            return
         for key, val in self.node_pos_to_widget_pos().iteritems():
             setattr(self, key, val)
     def on_node_selected(self, **kwargs):
@@ -216,17 +218,22 @@ class Button(KvButton):
             Clock.schedule_once(self.long_touch, .5)
         return True
     def on_touch_up(self, touch):
+        if not self.collide_point(*touch.pos):
+            return False
         if touch.grab_current is self:
             self._touch_count -= 1
             Clock.unschedule(self.long_touch)
             if touch.is_double_tap:
+                Clock.unschedule(self.test_single_tap)
                 self.node_button.on_double_tap()
-            elif not self._long_touch:
-                self.node_button.on_single_tap()
+            elif not self._long_touch and self._touch_count == 0:
+                Clock.schedule_once(self.test_single_tap, .25)
             self._long_touch = False
             touch.ungrab(self)
             return True
         return False
+    def test_single_tap(self, dt):
+        self.node_button.on_single_tap()
     def long_touch(self, dt):
         self._long_touch = True
         self.node_button.on_long_touch()

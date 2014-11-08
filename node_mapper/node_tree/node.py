@@ -110,6 +110,7 @@ class Node(BaseObject):
             hidden = False
         for c in self.child_nodes.itervalues():
             c.hidden = hidden
+        self.root_node.update_child_positions_absolute()
     def on_child_nodes_update(self, **kwargs):
         mode = kwargs.get('mode')
         child = kwargs.get('obj')
@@ -139,9 +140,11 @@ class Node(BaseObject):
         #if self.is_root and self.position.working:
         #    return
         self.updating_child_positions = True
+        self.position.children_working = len(self.position.get_active_children())
         self.position.calc_absolute()
         for child in self.child_nodes.itervalues():
             child.update_child_positions_absolute()
+            self.position.children_working -= 1
         if self.is_root:
             self.position.working = False
         elif not self.root_node.position.working:
@@ -193,6 +196,7 @@ class NodePosition(BaseObject):
         self.relative_x = kwargs.get('relative_x', 0.)
         self.relative_y = kwargs.get('relative_y', 0.)
         self.y_offset = kwargs.get('y_offset', 0.)
+        self.children_working = 0
         self.conflicting_positions = set()
         self.bind(property_changed=self.on_own_property_changed)
         if self.node.is_root:
@@ -207,8 +211,11 @@ class NodePosition(BaseObject):
                       working=self.parent_position.on_child_working, 
                       x=self.on_x_changed)
             self.all_positions.add(self)
+            self.node.parent.child_nodes.bind(child_update=self.on_node_parent_child_update)
         self.bounds = NodeBounds(node=self.node, position=self)
         self.node.bind(parent=self.on_node_parent_changed)
+        for sibling in self.iter_siblings():
+            self.bind_sibling(sibling)
     @property
     def parent_position(self):
         if self.node.is_root:
@@ -229,12 +236,24 @@ class NodePosition(BaseObject):
         if p is not None:
             self.unbind(p)
         super(NodePosition, self).unlink()
+    def bind_sibling(self, sibling):
+        if sibling == self:
+            return
+        sibling.bind(y=self.on_sibling_y)
+    def unbind_sibling(self, sibling):
+        if sibling == self:
+            return
+        sibling.unbind(self.on_sibling_y)
     def iter_children(self):
         for n in self.node.child_nodes.itervalues():
             yield n.position
+    def get_active_children(self):
+        return [c for c in self.iter_children() if not c.node.hidden]
     def iter_siblings(self):
         for n in self.node.iter_siblings():
             yield n.position
+    def get_active_siblings(self):
+        return [s for s in self.iter_siblings() if not s.node.hidden]
     def walk_positions(self):
         for node in self.node.walk_nodes():
             yield node.position
@@ -258,6 +277,12 @@ class NodePosition(BaseObject):
         return d
     def calc_y_size(self):
         self.y_size_max = 0.
+        if self.node.hidden:
+            self.y_size = 0.
+            return
+        if self.node.collapsed:
+            self.y_size = 1.
+            return
         self.y_size = float(len(self.node.child_nodes.values()))
         if self.y_size == 0.:
             self.y_offset = 0.
@@ -280,8 +305,10 @@ class NodePosition(BaseObject):
         r = self.check_conflicts()
         self.working = False
         return r
-    def on_sibling_in_conflict(self, **kwargs):
-        pass
+    def on_sibling_y(self, **kwargs):
+        if self.working:
+            return
+        self.calc_absolute()
     def check_conflicts(self, full_check=False):
         return
         x = self.x
@@ -351,6 +378,13 @@ class NodePosition(BaseObject):
             return
         if child.in_conflict:
             pass
+    def on_node_parent_child_update(self, **kwargs):
+        node = kwargs.get('obj')
+        mode = kwargs.get('mode')
+        if mode == 'add':
+            self.bind_sibling(node)
+        elif mode == 'remove':
+            self.unbind_sibling(node)
     def on_node_parent_changed(self, **kwargs):
         p = kwargs.get('value')
         old = kwargs.get('old')
@@ -359,6 +393,7 @@ class NodePosition(BaseObject):
             self._old_parent = old
             self.in_conflict = False
             self.unbind(old.position)
+            old.child_nodes.unbind(self)
             self.all_positions.discard(self)
             self._old_parent = None
         if p is not None:
@@ -366,6 +401,7 @@ class NodePosition(BaseObject):
 #                if n == self.node:
 #                    continue
 #                break
+            p.child_nodes.bind(child_update=self.on_node_parent_child_update)
             self.bind(in_conflict=p.position.on_child_conflict, 
                       y_size_max=p.position.on_child_y_size_max, 
                       working=p.position.on_child_working)
@@ -386,8 +422,8 @@ class NodeBounds(BaseObject):
         x={'default':0.}, 
         y={'default':0.}, 
         width={'default':100.}, 
-        height={'default':50.}, 
-        outer_bounds={'default':{'x':150., 'y':75.}}, 
+        height={'default':30.}, 
+        outer_bounds={'default':{'x':150., 'y':60.}}, 
     )
     def __init__(self, **kwargs):
         super(NodeBounds, self).__init__(**kwargs)

@@ -18,11 +18,32 @@ class NodePosition(BaseObject):
     def __init__(self, **kwargs):
         super(NodePosition, self).__init__(**kwargs)
     def _fget_left(self):
-        pass
+        w = self.width / 2.
+        if self.x_invert:
+            value = self.x + w
+        else:
+            value = self.x - w
+        return value
     def _fset_left(self, value):
-        pass
+        w = self.width / 2.
+        self.Properties['left'].set_value(value)
+        if self.x_invert:
+            self.x = value + w
+        else:
+            self.x = value - w
     def _fget_top(self):
-        pass
+        h = self.height / 2.
+        if self.y_invert:
+            value = self.y - h
+        else:
+            value = self.y + h
+        return value
     def _fset_top(self, value):
-        pass
+        h = self.height / 2.
+        self.Properties['top'].set_value(value)
+        if self.y_invert:
+            self.y = value + h
+        else:
+            self.y = value - h
+        
     

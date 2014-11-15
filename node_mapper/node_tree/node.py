@@ -49,7 +49,9 @@ class TreeNode(TreeNodePosition):
             parent.child_nodes.add_child(existing_object=self)
         self.hidden = parent.hidden or parent.collapsed
         parent.bind(hidden=self.on_parent_hidden)
+        super(TreeNode, self).bind_parent(parent)
     def unbind_parent(self, parent):
+        super(TreeNode, self).unbind_parent(parent)
         parent.unbind(self)
         parent.child_nodes.detach_child(self)
         self.init_complete = False
@@ -60,7 +62,6 @@ class TreeNode(TreeNodePosition):
            self.unbind_parent(old)
         if p is not None:
             self.bind_parent(p)
-        self.update_position_relative()
     def iter_siblings(self):
         if self.is_root:
             s_iter = []
@@ -92,27 +93,19 @@ class TreeNode(TreeNodePosition):
             hidden = False
         for c in self.child_nodes.itervalues():
             c.hidden = hidden
-        self.root_node.update_child_positions_absolute()
     def on_child_nodes_update(self, **kwargs):
         mode = kwargs.get('mode')
         child = kwargs.get('obj')
         if mode == 'add':
             child.bind(position_changed=self.on_child_node_position_changed)
-            self.update_child_positions_relative()
+            #self.update_child_positions_relative()
         elif mode == 'remove':
             child.unbind(self)
-        elif mode == 'Index':
-            self.update_child_positions_relative()
-    def __repr__(self):
-        return 'Node: %s' % (self)
-    def __str__(self):
-        if not self.name:
-            return self.id
-        return self.name
     
 
-def test():
-    p = TreeNode(name='root')
+def test(**kwargs):
+    kwargs.setdefault('name', 'root')
+    p = TreeNode(**kwargs)
     c = p.add_child(name='child1')
     p.add_child(name='child2')
     p.add_child(name='child3')

@@ -15,6 +15,7 @@ class NodeBase(BaseObject):
         if self.node_tree is None:
             self.node_tree = self.build_node_tree()
         self.node_tree.add_node(self)
+        self.node_tree.nodes.bind(child_update=self.on_node_tree_nodes_update)
     def unlink(self):
         self.node_tree.remove_node(self)
         super(NodeBase, self).unlink()
@@ -30,6 +31,21 @@ class NodeBase(BaseObject):
         if value is None:
             return False
         return True
+    def on_node_tree_nodes_update(self, **kwargs):
+        pass
+    def __repr__(self):
+        try:
+            return '%s %s' % (self.__class__.__name__, self)
+        except:
+            return super(NodeBase, self).__repr__()
+    def __str__(self):
+        if not self.name:
+            s = self.id
+        else:
+            s = self.name
+        if type(s) != str:
+            s = 'Node'
+        return s
     
 class NodeTree(BaseObject):
     _ChildGroups = dict(

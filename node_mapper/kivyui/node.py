@@ -65,11 +65,11 @@ class NodeButton(BaseObject):
         self.node_selection.add_node(self)
         self.node.bind(name=self.refresh_text, 
                        hidden=self.on_node_hidden, 
-                       pre_delete=self.on_node_pre_delete)
-        self.node.bounds.bind(x=self.refresh_geom, 
-                              y=self.refresh_geom, 
-                              width=self.refresh_geom, 
-                              height=self.refresh_geom)
+                       pre_delete=self.on_node_pre_delete, 
+                       x=self.refresh_geom, 
+                       y=self.refresh_geom, 
+                       width=self.refresh_geom, 
+                       height=self.refresh_geom)
         for child_node in self.node.child_nodes.itervalues():
             self.add_child_node(child_node)
         self.node.child_nodes.bind(child_update=self.on_node_child_update)
@@ -77,16 +77,8 @@ class NodeButton(BaseObject):
     def id(self):
         return self.node.id
     def build_all(self):
-        print self.node, self.node.init_complete
-        if self.node.init_complete:
-            self._build_all()
-        else:
-            self.node.bind(init_complete=self._build_all)
+        self._build_all()
     def _build_all(self, **kwargs):
-        if kwargs.get('Property') == 'init_complete':
-            if kwargs.get('value') is False:
-                return
-            self.node.unbind(self._build_all)
         if self.widget is None:
             self.build_widget()
         for child in self.children.itervalues():
@@ -110,8 +102,8 @@ class NodeButton(BaseObject):
         d = {'name':self.node.name}
         d['position'] = {}
         for key in ['x', 'y', 'relative_x', 'relative_y']:
-            d['position'][key] = getattr(self.node.position, key)
-        d['bounds'] = dict(zip(['x', 'y'], [getattr(self.node.bounds, key) for key in ['x', 'y']]))
+            d['position'][key] = getattr(self.node, key)
+        d['bounds'] = dict(zip(['x', 'y'], [getattr(self.node, key) for key in ['x', 'y']]))
         d['index'] = self.node.Index
         return str(d)
     def refresh_text(self, **kwargs):
@@ -155,7 +147,6 @@ class NodeButton(BaseObject):
             self.root_widget.add_widget(self.widget)
     def on_node_pre_delete(self, **kwargs):
         self.node.unbind(self)
-        self.node.bounds.unbind(self)
         self.emit('delete')
     def on_double_tap(self):
         self._adding_node_from_ui = True
@@ -180,11 +171,10 @@ class Button(KvButton):
         self._long_touch = False
         self.node_button = kwargs.get('node_button')
         node = self.node_button.node
-        bounds = node.bounds
         kwargs.update(dict(
             size_hint=(None, None), 
-            width=int(round(bounds.width)), 
-            height=int(round(bounds.height)), 
+            width=int(round(node.width)), 
+            height=int(round(node.height)), 
             text=node.name, 
         ))
         super(Button, self).__init__(**kwargs)
@@ -194,11 +184,11 @@ class Button(KvButton):
             attr = ['x', 'y']
         if isinstance(attr, basestring):
             attr = [attr]
-        bounds = self.node_button.node.bounds
+        node = self.node_button.node
         center = {'x': 100, 'y':self.parent.center[1]}
         d = {}
         for _attr in attr:
-            d['_'.join(['center', _attr])] = int(round(getattr(bounds, _attr))) + center[_attr]
+            d['_'.join(['center', _attr])] = int(round(getattr(node, _attr))) + center[_attr]
         if len(d) == 1:
             return d.values()[0]
         return d

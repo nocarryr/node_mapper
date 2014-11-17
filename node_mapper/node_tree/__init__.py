@@ -5,6 +5,7 @@ class NodeBase(BaseObject):
     _Properties = dict(
         id={'ignore_type':True, 'fvalidate':'_fvalidate_id'}, 
         name={'default':''}, 
+        init_complete={'default':False}, 
     )
     signals_to_register = ['pre_delete']
     def __init__(self, **kwargs):

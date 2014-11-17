@@ -7,7 +7,6 @@ class TreeNode(TreeNodePosition):
         collapsed={'default':False}, 
         hidden={'default':False}, 
         updating_child_positions={'default':False}, 
-        init_complete={'default':False}, 
     )
     _ChildGroups = dict(child_nodes={'child_class':'__self__', 
                                      'zero_centered':True})
@@ -18,6 +17,7 @@ class TreeNode(TreeNodePosition):
         self.parent = kwargs.get('parent')
         self.is_root = self.parent is None
         self.child_nodes.bind(child_update=self.on_child_nodes_update)
+        self.init_complete = True
     @property
     def root_node(self):
         if self.is_root:
@@ -45,7 +45,7 @@ class TreeNode(TreeNodePosition):
     def del_child(self, child):
         self.child_nodes.del_child(child)
     def bind_parent(self, parent):
-        if self.id not in parent.child_nodes:
+        if self.init_complete and self.id not in parent.child_nodes:
             parent.child_nodes.add_child(existing_object=self)
         self.hidden = parent.hidden or parent.collapsed
         parent.bind(hidden=self.on_parent_hidden)

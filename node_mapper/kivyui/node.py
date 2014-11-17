@@ -131,12 +131,24 @@ class NodeButton(BaseObject):
         mode = kwargs.get('mode')
         node = kwargs.get('obj')
         if mode == 'add':
+            if not node.init_complete:
+                node.bind(init_complete=self.on_child_node_init_complete)
+                return
             ckwargs = {}
             if self._adding_node_from_ui:
                 ckwargs['with_editor'] = True
                 self._adding_node_from_ui = False
             self.add_child_node(node, **ckwargs)
-        
+    def on_child_node_init_complete(self, **kwargs):
+        if not kwargs.get('value'):
+            return
+        node = kwargs.get('obj')
+        node.unbind(self.on_child_node_init_complete)
+        ckwargs = {}
+        if self._adding_node_from_ui:
+            ckwargs['with_editor'] = True
+            self._adding_node_from_ui = False
+        self.add_child_node(node, **ckwargs)
     def on_node_hidden(self, **kwargs):
         if self.widget is None:
             return

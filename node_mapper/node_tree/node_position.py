@@ -180,7 +180,8 @@ class TreeNodePosition(NodePositionBase):
                     x=self.update_position_absolute, 
                     y=self.update_position_absolute)
         parent.child_nodes.bind(child_update=self.on_siblings_childgroup_update)
-        self.update_position_relative()
+        if self.init_complete:
+            self.update_position_relative()
     def unbind_parent(self, parent):
         parent.unbind(self.update_position_absolute)
         parent.child_nodes.unbind(self.on_siblings_childgroup_update)

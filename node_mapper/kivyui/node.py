@@ -116,6 +116,8 @@ class NodeButton(BaseObject):
         if self.widget is None:
             return
         prop = kwargs.get('Property').name
+        if self.widget.parent is None:
+            return
         ivalue = self.widget.node_pos_to_widget_pos(prop)
         if prop in ['x', 'y']:
             attr = '_'.join(['center', prop])

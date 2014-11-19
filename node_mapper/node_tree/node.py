@@ -11,9 +11,13 @@ class TreeNode(TreeNodePosition):
     _ChildGroups = dict(child_nodes={'child_class':'__self__', 
                                      'zero_centered':True})
     def __init__(self, **kwargs):
+        p = kwargs.get('parent')
+        if p is not None:
+            kwargs.setdefault('node_tree', p.node_tree)
         super(TreeNode, self).__init__(**kwargs)
         self.bind(parent=self.on_parent_changed, 
-                  collapsed=self.on_collapsed_changed)
+                  collapsed=self.on_collapsed_changed, 
+                  hidden=self.on_hidden_changed)
         self.parent = kwargs.get('parent')
         self.is_root = self.parent is None
         self.child_nodes.bind(child_update=self.on_child_nodes_update)
@@ -80,6 +84,12 @@ class TreeNode(TreeNodePosition):
                 node_iter = node.walk_nodes()
             for _node in node_iter:
                 yield _node
+    def check_collision(self, node):
+        if self.hidden:
+            return False
+        if node.hidden:
+            return False
+        return super(TreeNode, self).check_collision(node)
     def on_parent_hidden(self, **kwargs):
         value = kwargs.get('value')
         if value:
@@ -93,24 +103,30 @@ class TreeNode(TreeNodePosition):
             hidden = False
         for c in self.child_nodes.itervalues():
             c.hidden = hidden
+        self.y_offset = 0.
+        self.update_position_absolute()
+    def on_hidden_changed(self, **kwargs):
+        if kwargs.get('value') is False:
+            self.y_offset = 0.
+            self.in_collision = False
+        self.update_position_absolute()
     def on_child_nodes_update(self, **kwargs):
         mode = kwargs.get('mode')
         child = kwargs.get('obj')
         if mode == 'add':
             child.bind(position_changed=self.on_child_node_position_changed)
-            #self.update_child_positions_relative()
         elif mode == 'remove':
-            child.unbind(self)
-    
+            child.unbind(self.on_child_node_position_changed)
 
 def test(**kwargs):
     kwargs.setdefault('name', 'root')
     p = TreeNode(**kwargs)
-    c = p.add_child(name='child1')
-    p.add_child(name='child2')
+    c1 = p.add_child(name='child1')
+    c2 = p.add_child(name='child2')
     p.add_child(name='child3')
     for i in range(3):
-        c.add_child(name='grandchild%d' % (i+1))
+        c1.add_child(name='grandchild%d' % (i+1))
+    c2.add_child(name='grandchildb1')
     return p
 
 if __name__ == '__main__':

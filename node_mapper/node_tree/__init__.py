@@ -14,7 +14,7 @@ class NodeBase(BaseObject):
         self.name = kwargs.get('name', '')
         self.node_tree = kwargs.get('node_tree')
         if self.node_tree is None:
-            self.node_tree = self.build_node_tree()
+            self.node_tree = self.build_node_tree(**kwargs)
         self.node_tree.add_node(self)
         self.node_tree.nodes.bind(child_update=self.on_node_tree_nodes_update)
     def unlink(self):

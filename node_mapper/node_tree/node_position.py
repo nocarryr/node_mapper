@@ -310,10 +310,17 @@ class TreeNodePosition(NodePositionBase):
                     break
         self.in_collision == len(in_collision) > 0
     def resolve_collision(self, node):
+        y_offset = node.height + node.v_padding
         if node < self:
-            self.y_offset += node.height + node.v_padding
+            if self.y_invert:
+                self.y_offset += y_offset
+            else:
+                self.y_offset -= y_offset
         elif node > self:
-            self.y_offset -= node.height + node.v_padding
+            if self.y_invert:
+                self.y_offset -= y_offset
+            else:
+                self.y_offset += y_offset
         return self.check_collision(node) is False
     def on_siblings_childgroup_update(self, **kwargs):
         self.update_position_relative()
@@ -411,12 +418,18 @@ class TreeNodeTree(NodeTree):
                 self._nodes_in_collision.add(node)
         for x in reversed(sorted(self.nodes_by_x.keys())):
             nodes = sorted(self.nodes_by_x[x].values())
+            if len(nodes) / 2 == len(nodes) / 2.:
+                center_node = None
+            else:
+                center_node = nodes[len(nodes) / 2]
             nodes_plus = nodes[len(nodes) / 2:]
             nodes_minus = nodes[:len(nodes) / 2]
             nodes_minus.reverse()
             for node_plus, node_minus in zip(nodes_plus, nodes_minus):
-                do_check(node_plus)
-                do_check(node_minus)
+                if center_node is not node_minus:
+                    do_check(node_minus)
+                if center_node is not node_plus:
+                    do_check(node_plus)
         self._checking_collisions = False
         if len(self._nodes_in_collision):
             self.check_collisions()

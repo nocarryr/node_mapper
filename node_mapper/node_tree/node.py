@@ -104,19 +104,23 @@ class TreeNode(TreeNodePosition):
         for c in self.child_nodes.itervalues():
             c.hidden = hidden
         self.y_offset = 0.
-        self.update_position_absolute()
+        self.node_tree.check_collisions()
     def on_hidden_changed(self, **kwargs):
         if kwargs.get('value') is False:
-            self.y_offset = 0.
             self.in_collision = False
-        self.update_position_absolute()
+        self.y_offset = 0.
+        self.node_tree.check_collisions()
     def on_child_nodes_update(self, **kwargs):
         mode = kwargs.get('mode')
         child = kwargs.get('obj')
         if mode == 'add':
+            self.y_offset = 0.
             child.bind(position_changed=self.on_child_node_position_changed)
+            self.node_tree.check_collisions()
         elif mode == 'remove':
+            self.y_offset = 0.
             child.unbind(self.on_child_node_position_changed)
+            self.node_tree.check_collisions()
 
 def test(**kwargs):
     kwargs.setdefault('name', 'root')

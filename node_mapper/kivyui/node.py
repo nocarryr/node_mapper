@@ -1,7 +1,10 @@
 from kivy.clock import Clock
+from kivy.graphics import Line as KvLine
+from kivy.graphics import Color as KvColor
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button as KvButton
 from kivy.uix.textinput import TextInput
-from node_mapper.nomadic_recording_lib.Bases import BaseObject
+from node_mapper.nomadic_recording_lib.Bases import BaseObject, Color
 
 class NodeSelection(BaseObject):
     signals_to_register = ['selected', 'node_added']
@@ -48,6 +51,7 @@ class NodeButton(BaseObject):
     def __init__(self, **kwargs):
         self._adding_node_from_ui = False
         self.widget = None
+        self.node_link = None
         self.with_editor = kwargs.get('with_editor', False)
         self.children = {}
         self.parent = kwargs.get('parent')
@@ -81,6 +85,8 @@ class NodeButton(BaseObject):
     def _build_all(self, **kwargs):
         if self.widget is None:
             self.build_widget()
+        if self.node_link is None and not self.node.is_root:
+            self.node_link = NodeLink(node_button=self)
         for child in self.children.itervalues():
             child.build_all()
     def build_widget(self):
@@ -126,6 +132,7 @@ class NodeButton(BaseObject):
         if getattr(self.widget, attr) == ivalue:
             return
         self.emit('refresh', type='geom')
+        self.widget.needs_update = True
         setattr(self.widget, attr, ivalue)
     def add_editor(self):
         return NodeEditor(node_button=self)
@@ -181,6 +188,7 @@ class NodeButton(BaseObject):
         
 class Button(KvButton):
     def __init__(self, **kwargs):
+        self.needs_update = True
         self._touch_count = 0
         self._long_touch = False
         self.node_button = kwargs.get('node_button')
@@ -211,6 +219,7 @@ class Button(KvButton):
             return
         for key, val in self.node_pos_to_widget_pos().iteritems():
             setattr(self, key, val)
+        self.needs_update = False
     def on_node_selected(self, **kwargs):
         self.state = {True:'down', False:'normal'}.get(kwargs.get('value'))
     def on_touch_down(self, touch):
@@ -269,3 +278,77 @@ class NodeEditor(TextInput):
         self.pos = value
     def on_button_size(self, instance, value):
         self.size = value
+
+class DummyWidget(FloatLayout):
+    def __init__(self, **kwargs):
+        self._layout_cb = kwargs.get('layout_cb')
+        super(DummyWidget, self).__init__(**kwargs)
+    def do_layout(self, *args, **kwargs):
+        if self._layout_cb:
+            self._layout_cb(*args, **kwargs)
+    def update_position(self):
+        self._trigger_layout()
+    def on_parent(self, instance, value):
+        if self.parent is None:
+            return
+        self.update_geom()
+        self.parent.bind(pos=self.update_geom, size=self.update_geom)
+    def update_geom(self, *args, **kwargs):
+        if self.parent is None:
+            return
+        self.size = self.parent.size
+        self.pos = self.parent.pos
+        
+class NodeLink(BaseObject):
+    _Properties = dict(
+        line_width={'default':1}, 
+    )
+    def __init__(self, **kwargs):
+        self.needs_update = True
+        self.line = None
+        super(NodeLink, self).__init__(**kwargs)
+        self.color = Color()
+        cprops = kwargs.get('color')
+        if not cprops:
+            cprops = {'hsv':[0., 0., .8]}
+        for prop, val in cprops.iteritems():
+            setattr(self.color, prop, val)
+        self.node_button = kwargs.get('node_button')
+        self.root_widget = self.node_button.root_widget
+        self.dummy_widget = DummyWidget(layout_cb=self.trigger_draw)
+        self.root_widget.add_widget(self.dummy_widget)
+        self.color.bind(rgb=self.trigger_draw)
+        self.bind(line_width=self.trigger_draw)
+        self.node_button.node.bind(hidden=self.trigger_draw)
+        self.node_button.widget.bind(pos=self.trigger_draw, 
+                                     size=self.trigger_draw)
+        self.node_button.widget.parent.bind(pos=self.trigger_draw, 
+                                            size=self.trigger_draw)
+        self.dummy_widget.bind(size=self.trigger_draw, pos=self.trigger_draw)
+        ## TODO: allow reparenting
+        self.trigger_draw()
+    def unlink(self):
+        self.root_widget.remove_widget(self.dummy_widget)
+        self.node_button.node.unbind(self)
+        self.node_button.widget.unbind(self.trigger_draw)
+        self.node_button.widget.parent.unbind(self.trigger_draw)
+        super(NodeLink, self).unlink()
+    def calc_points(self):
+        widget1 = self.node_button.widget
+        widget2 = self.node_button.parent.widget
+        return [
+            widget1.x, widget1.center_y, 
+            widget2.right, widget2.center_y, 
+        ]
+    def draw(self):
+        self.dummy_widget.canvas.clear()
+        if self.node_button.node.hidden:
+            return
+        with self.dummy_widget.canvas:
+            KvColor(rgb=self.color.rgb_seq)
+            KvLine(points=self.calc_points(), width=self.line_width)
+        self.needs_update = False
+    def trigger_draw(self, *args, **kwargs):
+        self.draw()
+    def on_color_rgb(self, **kwargs):
+        self.trigger_draw()

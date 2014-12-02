@@ -145,6 +145,7 @@ class TreeNodePosition(NodePositionBase):
     def __init__(self, **kwargs):
         self._updating_position_relative = False
         self._updating_position_absolute = False
+        self._adjusting_y_offset_from_children = False
         super(TreeNodePosition, self).__init__(**kwargs)
         self.bind(property_changed=self.on_own_property_changed)
     def get_y_path(self):
@@ -228,6 +229,20 @@ class TreeNodePosition(NodePositionBase):
                 zc_keys.remove(key)
         for key in key_iter:
             yield cgroup.indexed_items[key]
+    def get_child_nodes_center(self):
+        child_len = len(self.child_nodes)
+        if not child_len:
+            return []
+        if child_len == 1:
+            return [self.child_nodes.values()[0]]
+        children = sorted(self.child_nodes.values())
+        if child_len / 2. == child_len / 2:
+            return [
+                children[(child_len / 2) - 1], 
+                children[child_len / 2], 
+            ]
+        else:
+            return [children[child_len / 2]]
     def bind_parent(self, parent):
         self.y_invert = parent.y_invert
         self.x_invert = parent.x_invert
@@ -244,22 +259,25 @@ class TreeNodePosition(NodePositionBase):
     def on_child_node_position_changed(self, **kwargs):
         if self.is_root:
             return
-        self.update_position_absolute()
-        return
         child = kwargs.get('obj')
         ptype = kwargs.get('type')
-        prop = kwargs.get('Property')
-        value = kwargs.get('value')
         if ptype != 'y_offset':
             return
-        if getattr(self, '_adjusting_y_offset_from_children', False):
+        if self._adjusting_y_offset_from_children:
             return
-        self._adjusting_y_offset_from_children = True
-        if prop.name == 'y_offset':
-            self.y_offset = value
-            child.y_offset = 0.
-        self.update_position_absolute()
-        self._adjusting_y_offset_from_children = False
+        if child._updating_position_absolute:
+            return
+        child_y = None
+        center_nodes = self.get_child_nodes_center()
+        if len(center_nodes) == 1:
+            child_y = center_nodes[0].y
+        else:
+            l = [n.y for n in center_nodes]
+            child_y = min(l) + ((max(l) - min(l)) / 2.)
+        if child_y is not None:
+            self._adjusting_y_offset_from_children = True
+            self.y_offset = (self.y - self.y_offset) + child_y
+            self._adjusting_y_offset_from_children = False
     def update_position_relative(self, **kwargs):
         if self._updating_position_relative:
             return
@@ -276,6 +294,8 @@ class TreeNodePosition(NodePositionBase):
             return
         if self.relative_y is None:
             return
+        if self.parent._adjusting_y_offset_from_children:
+            self.y_offset = 0.
         self._updating_position_absolute = True
         p = self.parent
         w = (self.width + self.h_padding) / 2.
@@ -413,10 +433,11 @@ class TreeNodeTree(NodeTree):
         self._checking_collisions = True
         def do_check(node):
             node.check_collisions(single_pass=True)
-            node.check_collisions(resolve=False)
             if node.in_collision:
                 self._nodes_in_collision.add(node)
         for x in reversed(sorted(self.nodes_by_x.keys())):
+            if False in [n.init_complete for n in self.nodes_by_x[x].values()]:
+                break
             nodes = sorted(self.nodes_by_x[x].values())
             if len(nodes) / 2 == len(nodes) / 2.:
                 center_node = None

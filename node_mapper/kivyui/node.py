@@ -107,7 +107,7 @@ class NodeButton(BaseObject):
     def build_debug_text(self):
         d = {'name':self.node.name}
         d['position'] = {}
-        for key in ['x', 'y', 'relative_x', 'relative_y']:
+        for key in ['x', 'y', 'relative_x', 'relative_y', 'y_offset']:
             d['position'][key] = getattr(self.node, key)
         d['bounds'] = dict(zip(['x', 'y'], [getattr(self.node, key) for key in ['x', 'y']]))
         d['index'] = self.node.Index

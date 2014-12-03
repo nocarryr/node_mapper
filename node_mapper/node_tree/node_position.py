@@ -1,4 +1,4 @@
-from node_mapper.node_tree import NodeBase, NodeTree
+from node_mapper.node_tree import NodeBase, NodeTree, REGISTRY
 
 class NodePositionBase(NodeBase):
     _Properties = dict(
@@ -15,6 +15,14 @@ class NodePositionBase(NodeBase):
         top={'type':float, 'fget':'_fget_top', 'fset':'_fset_top'}, 
         bottom={'type':float, 'fget':'_fget_bottom', 'fset':'_fset_bottom'}, 
     )
+    _saved_attributes = [
+        'x', 
+        'y', 
+        'width', 
+        'height', 
+        'v_padding', 
+        'h_padding', 
+    ]
     signals_to_register = ['position_changed']
     def __init__(self, **kwargs):
         super(NodePositionBase, self).__init__(**kwargs)
@@ -359,11 +367,34 @@ class TreeNodePosition(NodePositionBase):
         super(TreeNodePosition, self).on_own_property_changed(**kwargs)
         
 class TreeNodeTree(NodeTree):
+    _Properties = dict(
+        x_invert={'default':False}, 
+        y_invert={'default':False}, 
+    )
+    _saved_attributes = ['x_invert', 'y_invert']
     def __init__(self, **kwargs):
+        self.unparented_nodes = {}
         self._checking_collisions = False
         self._nodes_in_collision = set()
         self.nodes_by_x = {}
         super(TreeNodeTree, self).__init__(**kwargs)
+    @property
+    def root_node(self):
+        by_x = self.nodes_by_x.get(0., {})
+        if not len(by_x):
+            return None
+        return by_x.values()[0]
+    def _deserialize_node(self, d):
+        node = super(TreeNodeTree, self)._deserialize_node(d)
+        if not node.is_root and node.parent is None:
+            if node.parent_id not in self.unparented_nodes:
+                self.unparented_nodes[node.parent_id] = set()
+            self.unparented_nodes[node.parent_id].add(node)
+        if node.id in self.unparented_nodes:
+            for other in self.unparented_nodes[node.id]:
+                other.parent = node
+            del self.unparented_nodes[node.id]
+        return node
     def iter_nodes_by_x(self, x=None):
         by_x = self.nodes_by_x
         if x is None:

@@ -1,3 +1,4 @@
+from node_mapper.node_tree import REGISTRY
 from node_mapper.node_tree.node_position import TreeNodePosition
 
 class TreeNode(TreeNodePosition):
@@ -10,7 +11,11 @@ class TreeNode(TreeNodePosition):
     )
     _ChildGroups = dict(child_nodes={'child_class':'__self__', 
                                      'zero_centered':True})
+    _saved_attributes = ['parent_id', 'attributes', 'collapsed']
+    #_saved_child_objects = ['child_nodes']
+    _saved_class_name = 'TreeNode'
     def __init__(self, **kwargs):
+        self._parent_id = None
         p = kwargs.get('parent')
         if p is not None:
             kwargs.setdefault('node_tree', p.node_tree)
@@ -18,8 +23,17 @@ class TreeNode(TreeNodePosition):
         self.bind(parent=self.on_parent_changed, 
                   collapsed=self.on_collapsed_changed, 
                   hidden=self.on_hidden_changed)
-        self.parent = kwargs.get('parent')
-        self.is_root = self.parent is None
+        if 'deserialize' not in kwargs:
+            self.parent = kwargs.get('parent')
+            self.is_root = self.parent is None
+        elif self.parent_id is None:
+            self.is_root = True
+            self.parent = None
+        else:
+            self.is_root = False
+            p = self.node_tree.nodes.get(self.parent_id)
+            if p is not None:
+                self.parent = p
         self.child_nodes.bind(child_update=self.on_child_nodes_update)
         self.init_complete = True
     @property
@@ -27,6 +41,12 @@ class TreeNode(TreeNodePosition):
         if self.is_root:
             return self
         return self.parent.root_node
+    @property
+    def parent_id(self):
+        return self._parent_id
+    @parent_id.setter
+    def parent_id(self, value):
+        self._parent_id = value
     def get_zero_centered_index(self):
         if self.parent is None:
             return 0.
@@ -65,7 +85,10 @@ class TreeNode(TreeNodePosition):
         if old is not None:
            self.unbind_parent(old)
         if p is not None:
+            self.parent_id = p.id
             self.bind_parent(p)
+        elif self.init_complete:
+            self.parent_id = None
     def iter_siblings(self):
         if self.is_root:
             s_iter = []
@@ -122,6 +145,8 @@ class TreeNode(TreeNodePosition):
             child.unbind(self.on_child_node_position_changed)
             self.node_tree.check_collisions()
 
+REGISTRY.add_node_class(TreeNode)
+
 def test(**kwargs):
     kwargs.setdefault('name', 'root')
     p = TreeNode(**kwargs)
@@ -132,6 +157,20 @@ def test(**kwargs):
         c1.add_child(name='grandchild%d' % (i+1))
     c2.add_child(name='grandchildb1')
     return p
+    
+def test_serialization(filename=None, **kwargs):
+    import json
+    root1 = test(**kwargs)
+    s = root1.node_tree.to_json(json_preset='pretty')
+    print REGISTRY.node_classes
+    print REGISTRY.tree_classes
+    if filename is not None:
+        with open(filename, 'w') as f:
+            f.write(s)
+    cls = root1.node_tree_class
+    tree2 = cls(deserialize=json.loads(s))
+    return root1, tree2, s
+    
 
 if __name__ == '__main__':
     r = test()

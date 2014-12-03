@@ -7,11 +7,13 @@ class NodeBase(BaseObject):
         name={'default':''}, 
         init_complete={'default':False}, 
     )
+    _saved_attributes = ['id', 'name']
     signals_to_register = ['pre_delete']
     def __init__(self, **kwargs):
         super(NodeBase, self).__init__(**kwargs)
-        self.id = setID(kwargs.get('id'))
-        self.name = kwargs.get('name', '')
+        if 'deserialize' not in kwargs:
+            self.id = setID(kwargs.get('id'))
+            self.name = kwargs.get('name', '')
         self.node_tree = kwargs.get('node_tree')
         if self.node_tree is None:
             self.node_tree = self.build_node_tree(**kwargs)
@@ -49,12 +51,21 @@ class NodeBase(BaseObject):
         return s
     
 class NodeTree(BaseObject):
-    _ChildGroups = dict(
-        nodes = {'ignore_index':True}, 
+    _Properties = dict(
+        node_class_name={'ignore_type':True}, 
     )
+    _ChildGroups = dict(
+        nodes = {'ignore_index':True, 'deserialize_callback':'_deserialize_node'}, 
+    )
+    _saved_attributes = ['node_class_name']
+    _saved_child_objects = ['nodes']
+    _saved_class_name = 'NodeTree'
     def __init__(self, **kwargs):
         super(NodeTree, self).__init__(**kwargs)
         self.nodes.bind(child_update=self.on_nodes_ChildGroup_update)
+    def _deserialize_node(self, d):
+        cls = REGISTRY.get(self.node_class_name)
+        return cls(deserialize=d, node_tree=self)
     def add_node(self, node=None, **kwargs):
         if node is not None:
             return self.nodes.add_child(existing_object=node)
@@ -68,3 +79,24 @@ class NodeTree(BaseObject):
         if mode == 'add':
             if self.nodes.child_class is None and obj is not None:
                 self.nodes.child_class = obj.__class__
+                self.node_class_name = obj.__class__.__name__
+
+class Registry(object):
+    def __init__(self):
+        self.node_classes = {}
+        self.tree_classes = {}
+    def add_node_class(self, cls):
+        self.node_classes[cls.__name__] = cls
+        if hasattr(cls, 'node_tree_class'):
+            self.add_tree_class(cls.node_tree_class)
+    def add_tree_class(self, cls):
+        self.tree_classes[cls.__name__] = cls
+    def get(self, name):
+        if name in self.node_classes:
+            return self.node_classes[name]
+        if name in self.tree_classes:
+            return self.tree_classes[name]
+        return None
+REGISTRY = Registry()
+
+    

@@ -487,3 +487,5 @@ class TreeNodeTree(NodeTree):
             self.check_collisions()
 
 TreeNodePosition.node_tree_class = TreeNodeTree
+REGISTRY.add_tree_class(TreeNodeTree)
+TreeNodePosition.node_tree_class = TreeNodeTree

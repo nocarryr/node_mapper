@@ -30,6 +30,7 @@ class TreeNode(TreeNodePosition):
             self.is_root = True
             self.parent = None
         else:
+            self.is_root = False
             p = self.node_tree.nodes.get(self.parent_id)
             if p is not None:
                 self.parent = p
@@ -156,6 +157,20 @@ def test(**kwargs):
         c1.add_child(name='grandchild%d' % (i+1))
     c2.add_child(name='grandchildb1')
     return p
+    
+def test_serialization(filename=None, **kwargs):
+    import json
+    root1 = test(**kwargs)
+    s = root1.node_tree.to_json(json_preset='pretty')
+    print REGISTRY.node_classes
+    print REGISTRY.tree_classes
+    if filename is not None:
+        with open(filename, 'w') as f:
+            f.write(s)
+    cls = root1.node_tree_class
+    tree2 = cls(deserialize=json.loads(s))
+    return root1, tree2, s
+    
 
 if __name__ == '__main__':
     r = test()

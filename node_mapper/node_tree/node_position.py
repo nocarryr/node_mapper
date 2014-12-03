@@ -358,6 +358,12 @@ class TreeNodeTree(NodeTree):
         self._nodes_in_collision = set()
         self.nodes_by_x = {}
         super(TreeNodeTree, self).__init__(**kwargs)
+    @property
+    def root_node(self):
+        by_x = self.nodes_by_x.get(0., {})
+        if not len(by_x):
+            return None
+        return by_x.values()[0]
     def _deserialize_node(self, d):
         node = super(TreeNodeTree, self)._deserialize_node(d)
         if not node.is_root and node.parent is None:

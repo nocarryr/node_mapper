@@ -52,7 +52,7 @@ class NodeBase(BaseObject):
     
 class NodeTree(BaseObject):
     _Properties = dict(
-        node_class_name={'type':str}, 
+        node_class_name={'ignore_type':True}, 
     )
     _ChildGroups = dict(
         nodes = {'ignore_index':True, 'deserialize_callback':'_deserialize_node'}, 

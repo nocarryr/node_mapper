@@ -1,2 +1,5 @@
 *.pyc
 .eric5project
+.issues
+.project
+.ropeproject

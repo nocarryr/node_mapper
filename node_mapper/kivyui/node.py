@@ -310,7 +310,7 @@ class NodeLink(BaseObject):
         self.color = Color()
         cprops = kwargs.get('color')
         if not cprops:
-            cprops = {'hsv':[0., 0., .8]}
+            cprops = {'hue':0., 'sat':0., 'val':.8}
         for prop, val in cprops.iteritems():
             setattr(self.color, prop, val)
         self.node_button = kwargs.get('node_button')

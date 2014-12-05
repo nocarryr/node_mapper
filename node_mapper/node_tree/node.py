@@ -11,8 +11,7 @@ class TreeNode(TreeNodePosition):
     )
     _ChildGroups = dict(child_nodes={'child_class':'__self__', 
                                      'zero_centered':True})
-    _saved_attributes = ['parent_id', 'attributes', 'collapsed']
-    #_saved_child_objects = ['child_nodes']
+    _saved_attributes = ['Index', 'parent_id', 'attributes', 'collapsed']
     _saved_class_name = 'TreeNode'
     def __init__(self, **kwargs):
         self._parent_id = None
@@ -23,18 +22,22 @@ class TreeNode(TreeNodePosition):
         self.bind(parent=self.on_parent_changed, 
                   collapsed=self.on_collapsed_changed, 
                   hidden=self.on_hidden_changed)
-        if 'deserialize' not in kwargs:
-            self.parent = kwargs.get('parent')
-            self.is_root = self.parent is None
-        elif self.parent_id is None:
-            self.is_root = True
-            self.parent = None
-        else:
-            p = self.node_tree.nodes.get(self.parent_id)
-            if p is not None:
-                self.parent = p
         self.child_nodes.bind(child_update=self.on_child_nodes_update)
-        self.init_complete = True
+        if 'deserialize' not in kwargs:
+            parent = kwargs.get('parent')
+            self.is_root = parent is None
+            self.parent = parent
+        else:
+            if self.parent_id is None:
+                self.is_root = True
+                self.parent = None
+            else:
+                self.is_root = False
+                p = self.node_tree.nodes.get(self.parent_id)
+                if p is not None:
+                    self.parent = p
+        if self.is_root:
+            self.init_complete = True
     @property
     def root_node(self):
         if self.is_root:
@@ -68,11 +71,13 @@ class TreeNode(TreeNodePosition):
     def del_child(self, child):
         self.child_nodes.del_child(child)
     def bind_parent(self, parent):
-        if self.init_complete and self.id not in parent.child_nodes:
+        if self.id not in parent.child_nodes:
             parent.child_nodes.add_child(existing_object=self)
         self.hidden = parent.hidden or parent.collapsed
         parent.bind(hidden=self.on_parent_hidden)
         super(TreeNode, self).bind_parent(parent)
+        if not self.init_complete:
+            self.init_complete = True
     def unbind_parent(self, parent):
         super(TreeNode, self).unbind_parent(parent)
         parent.unbind(self)
@@ -98,14 +103,39 @@ class TreeNode(TreeNodePosition):
                 continue
             yield sibling
     def walk_nodes(self):
+        self_yielded = False
+        if len(self.child_nodes):
+            child_iter = self.child_nodes.itervalues()
+        else:
+            child_iter = None
         node_iter = None
-        for node in self.child_nodes.itervalues():
-            if node_iter is None:
-                node_iter = [node]
-            else:
-                node_iter = node.walk_nodes()
-            for _node in node_iter:
+        walking_children = True
+        while walking_children:
+            if not self_yielded:
+                _node = self
+                self_yielded = True
+            elif node_iter is None:
+                if child_iter is None:
+                    walking_children = False
+                    node_iter = None
+                    _node = None
+                else:
+                    try:
+                        child = child_iter.next()
+                        node_iter = child.walk_nodes()
+                    except StopIteration:
+                        walking_children = False
+                        node_iter = None
+                        _node = None
+            if node_iter is not None:
+                try:
+                    _node = node_iter.next()
+                except StopIteration:
+                    _node = None
+                    node_iter = None
+            if _node is not None:
                 yield _node
+            
     def check_collision(self, node):
         if self.hidden:
             return False
@@ -156,6 +186,20 @@ def test(**kwargs):
         c1.add_child(name='grandchild%d' % (i+1))
     c2.add_child(name='grandchildb1')
     return p
+    
+def test_serialization(**kwargs):
+    root1 = test(**kwargs)
+    s = root1.node_tree.to_json(json_preset='pretty')
+    print REGISTRY.node_classes
+    print REGISTRY.tree_classes
+    with open('test.json', 'w') as f:
+        f.write(s)
+    cls = root1.node_tree_class
+    tree2 = cls.from_json(s)
+    with open('test2.json', 'w') as f:
+        f.write(tree2.to_json(json_preset='pretty'))
+    return root1, tree2, s
+    
 
 if __name__ == '__main__':
     r = test()

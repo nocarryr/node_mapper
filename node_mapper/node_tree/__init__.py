@@ -4,7 +4,7 @@ from node_mapper.nomadic_recording_lib.Bases.misc import setID
 class NodeBase(BaseObject):
     _Properties = dict(
         id={'ignore_type':True, 'fvalidate':'_fvalidate_id'}, 
-        name={'default':''}, 
+        name={'default':'', 'type':str}, 
         init_complete={'default':False}, 
     )
     _saved_attributes = ['id', 'name']
@@ -18,7 +18,7 @@ class NodeBase(BaseObject):
         if self.node_tree is None:
             self.node_tree = self.build_node_tree(**kwargs)
         self.node_tree.add_node(self)
-        self.node_tree.nodes.bind(child_update=self.on_node_tree_nodes_update)
+        self.node_tree.bind(node_update=self.on_node_tree_nodes_update)
     def unlink(self):
         self.node_tree.remove_node(self)
         super(NodeBase, self).unlink()
@@ -52,34 +52,49 @@ class NodeBase(BaseObject):
     
 class NodeTree(BaseObject):
     _Properties = dict(
-        node_class_name={'type':str}, 
-    )
-    _ChildGroups = dict(
-        nodes = {'ignore_index':True, 'deserialize_callback':'_deserialize_node'}, 
+        node_class_name={'ignore_type':True}, 
     )
     _saved_attributes = ['node_class_name']
     _saved_child_objects = ['nodes']
     _saved_class_name = 'NodeTree'
+    signals_to_register = ['node_update']
     def __init__(self, **kwargs):
+        self.node_class = None
         super(NodeTree, self).__init__(**kwargs)
-        self.nodes.bind(child_update=self.on_nodes_ChildGroup_update)
-    def _deserialize_node(self, d):
+        if 'deserialize' not in kwargs:
+            self.nodes = {}
+    @property
+    def nodes(self):
+        nodes = getattr(self, '_nodes', None)
+        if nodes is None:
+            nodes = self._nodes = {}
+        return nodes
+    @nodes.setter
+    def nodes(self, value):
+        if hasattr(self, '_nodes'):
+            return
+        self._nodes = value
+    def _deserialize_child(self, d):
         cls = REGISTRY.get(self.node_class_name)
+        if self.node_class is None:
+            self.node_class = cls
+            self.saved_child_classes.add(cls)
         return cls(deserialize=d, node_tree=self)
     def add_node(self, node=None, **kwargs):
         if node is not None:
-            return self.nodes.add_child(existing_object=node)
-        kwargs.setdefault('node_tree', self)
-        return self.nodes.add_child(**kwargs)
+            if self.node_class is None:
+                self.node_class = node.__class__
+                self.node_class_name = node.__class__.__name__
+        else:
+            kwargs.setdefault('node_tree', self)
+            node = self.node_class(**kwargs)
+        self.nodes[node.id] = node
+        self.emit('node_update', mode='add', obj=node)
+        return node
     def remove_node(self, node):
-        self.nodes.del_child(node)
-    def on_nodes_ChildGroup_update(self, **kwargs):
-        mode = kwargs.get('mode')
-        obj = kwargs.get('obj')
-        if mode == 'add':
-            if self.nodes.child_class is None and obj is not None:
-                self.nodes.child_class = obj.__class__
-                self.node_class_name = obj.__class__.__name__
+        if node.id in self.nodes:
+            del self.nodes[node.id]
+        self.emit('node_update', mode='remove', obj=node)
 
 class Registry(object):
     def __init__(self):

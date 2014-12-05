@@ -155,7 +155,10 @@ class TreeNodePosition(NodePositionBase):
         self._updating_position_absolute = False
         self._adjusting_y_offset_from_children = False
         super(TreeNodePosition, self).__init__(**kwargs)
-        self.bind(property_changed=self.on_own_property_changed)
+        self.bind(property_changed=self.on_own_property_changed, 
+                  init_complete=self.on_init_complete)
+        self.node_tree.bind(x_invert=self.on_node_tree_x_invert, 
+                            y_invert=self.on_node_tree_y_invert)
     def get_y_path(self):
         if self.is_root:
             return [0]
@@ -196,6 +199,7 @@ class TreeNodePosition(NodePositionBase):
         if other == self:
             return 0
         if other not in self.node_tree.nodes_by_x[self.x].values():
+            print self.x, other.x
             raise TypeError('cannot compare nodes with different x values')
         y_path = self.get_y_path()
         other_y_path = other.get_y_path()
@@ -260,6 +264,7 @@ class TreeNodePosition(NodePositionBase):
         parent.child_nodes.bind(child_update=self.on_siblings_childgroup_update)
         if self.init_complete:
             self.update_position_relative()
+            self.update_position_absolute()
     def unbind_parent(self, parent):
         self.absolute_pos_set = False
         parent.unbind(self.update_position_absolute)
@@ -287,6 +292,8 @@ class TreeNodePosition(NodePositionBase):
             self.y_offset = (self.y - self.y_offset) + child_y
             self._adjusting_y_offset_from_children = False
     def update_position_relative(self, **kwargs):
+        if self.node_tree._deserializing:
+            return
         if self._updating_position_relative:
             return
         self._updating_position_relative = True
@@ -296,6 +303,8 @@ class TreeNodePosition(NodePositionBase):
         self.relative_y = float(y)
         self._updating_position_relative = False
     def update_position_absolute(self, **kwargs):
+        if self.node_tree._deserializing:
+            return
         if self._updating_position_absolute:
             return
         if self.parent is None:
@@ -352,8 +361,17 @@ class TreeNodePosition(NodePositionBase):
         return self.check_collision(node) is False
     def on_siblings_childgroup_update(self, **kwargs):
         self.update_position_relative()
+    def on_node_tree_x_invert(self, **kwargs):
+        self.x_invert = kwargs.get('value')
+    def on_node_tree_y_invert(self, **kwargs):
+        self.y_invert = kwargs.get('value')
+    def on_init_complete(self, **kwargs):
+        if kwargs.get('value'):
+            self.update_position_relative()
+            self.update_position_absolute()
     def on_own_property_changed(self, **kwargs):
         prop = kwargs.get('Property')
+        value = kwargs.get('value')
         if prop.name in ['relative_x', 'relative_y']:
             kwargs = kwargs.copy()
             kwargs['type'] = 'relative'
@@ -364,6 +382,10 @@ class TreeNodePosition(NodePositionBase):
             kwargs['type'] = 'y_offset'
             self.emit('position_changed', **kwargs)
             self.update_position_absolute()
+        elif prop.name in ['x_invert', 'y_invert']:
+            if getattr(self.node_tree, prop.name) != value:
+                setattr(self.node_tree, prop.name, value)
+            self.update_position_relative()
         super(TreeNodePosition, self).on_own_property_changed(**kwargs)
         
 class TreeNodeTree(NodeTree):
@@ -372,6 +394,7 @@ class TreeNodeTree(NodeTree):
         y_invert={'default':False}, 
     )
     _saved_attributes = ['x_invert', 'y_invert']
+    _saved_child_objects = ['nodes_by_path']
     def __init__(self, **kwargs):
         self.unparented_nodes = {}
         self._checking_collisions = False
@@ -383,9 +406,35 @@ class TreeNodeTree(NodeTree):
         by_x = self.nodes_by_x.get(0., {})
         if not len(by_x):
             return None
+        if len(by_x) > 1:
+            r = None
+            for node in by_x.values():
+                if node.parent is None:
+                    if r is not None:
+                        return None
+                    r = node
+            return r
         return by_x.values()[0]
-    def _deserialize_node(self, d):
-        node = super(TreeNodeTree, self)._deserialize_node(d)
+    @property
+    def nodes_by_path(self):
+        d = {}
+        i = 0
+        for node in self.root_node.walk_nodes():
+            d[i] = node
+            i += 1
+        return d
+    @nodes_by_path.setter
+    def nodes_by_path(self, value):
+        return
+    def _load_saved_attr(self, d, **kwargs):
+        if 'nodes' in d['saved_children']:
+            d['saved_children']['nodes'].clear()
+        super(TreeNodeTree, self)._load_saved_attr(d, **kwargs)
+    def _deserialize_child(self, d):
+        node = super(TreeNodeTree, self)._deserialize_child(d)
+        for attr in ['x_invert', 'y_invert']:
+            setattr(node, attr, getattr(self, attr))
+        self.bind_node(node)
         if not node.is_root and node.parent is None:
             if node.parent_id not in self.unparented_nodes:
                 self.unparented_nodes[node.parent_id] = set()
@@ -408,26 +457,29 @@ class TreeNodeTree(NodeTree):
                 yield node
     def get_nodes_by_x(self, x=None):
         return [node for node in self.iter_nodes_by_x(x)]
-    def on_nodes_ChildGroup_update(self, **kwargs):
-        mode = kwargs.get('mode')
-        node = kwargs.get('obj')
-        if mode == 'add':
-            x = node.x
-            if self.nodes_by_x.get(x) is None:
-                self.nodes_by_x[x] = {}
-            if self.nodes_by_x[x].get(node.id) == node:
-                return
-            self.nodes_by_x[x][node.id] = node
-            node.bind(x=self.on_node_x_changed, 
-                      y=self.on_node_y_changed, 
-                      in_collision=self.on_node_in_collision, 
-                      init_complete=self.on_node_init_complete)
-        elif mode == 'remove':
-            x = node.x
-            node.unbind(self.on_node_x_changed)
-            if node.id in self.nodes_by_x.get(x, {}):
-                del self.nodes_by_x[x][node.id]
-        super(TreeNodeTree, self).on_nodes_ChildGroup_update(**kwargs)
+    def add_node(self, node=None, **kwargs):
+        node = super(TreeNodeTree, self).add_node(node, **kwargs)
+        self.bind_node(node)
+        return node
+    def remove_node(self, node):
+        self.unbind_node(node)
+        super(TreeNodeTree, self).remove_node(node)
+    def bind_node(self, node):
+        x = node.x
+        if self.nodes_by_x.get(x) is None:
+            self.nodes_by_x[x] = {}
+        if self.nodes_by_x[x].get(node.id) == node:
+            return
+        self.nodes_by_x[x][node.id] = node
+        node.bind(x=self.on_node_x_changed, 
+                  y=self.on_node_y_changed, 
+                  in_collision=self.on_node_in_collision, 
+                  init_complete=self.on_node_init_complete)
+    def unbind_node(self, node):
+        x = node.x
+        node.unbind(self.on_node_x_changed)
+        if node.id in self.nodes_by_x.get(x, {}):
+            del self.nodes_by_x[x][node.id]
     def on_node_x_changed(self, **kwargs):
         node = kwargs.get('obj')
         value = kwargs.get('value')
@@ -459,7 +511,16 @@ class TreeNodeTree(NodeTree):
         if kwargs.get('value'):
             self.check_collisions()
     def check_collisions(self):
+        try:
+            self._check_collisions()
+        except TypeError:
+            self._checking_collisions = False
+    def _check_collisions(self):
         if self._checking_collisions:
+            return
+        if self._deserializing:
+            return
+        if len(self.unparented_nodes):
             return
         self._checking_collisions = True
         def do_check(node):

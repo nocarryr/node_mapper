@@ -1,8 +1,9 @@
 from node_mapper.test import test
 from node_mapper.kivyui.main import launch
 
-def main():
-    root_node = test(y_invert=True)
+def main(root_node=None):
+    if root_node is None:
+        root_node = test(y_invert=True)
     return launch(interactive=True, root_node=root_node)
     
     

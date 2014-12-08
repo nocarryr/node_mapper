@@ -2,6 +2,7 @@ import os
 import json
 from node_mapper.node_tree.node import TreeNode
 from kivy.interactive import InteractiveLauncher
+from kivy.lang import Builder
 from kivy.app import App
 from kivy.base import EventLoop
 from kivy.uix.boxlayout import BoxLayout
@@ -107,7 +108,7 @@ class NodeApp(App):
         self._root_node = kwargs.get('root_node')
         super(NodeApp, self).__init__(**kwargs)
     def build(self):
-        root = MainWin(root_node=self._root_node)
+        root = Builder.load_file('main.kv')
         return root
 
 def launch(interactive=False, **kwargs):
@@ -117,5 +118,5 @@ def launch(interactive=False, **kwargs):
         a = NodeApp(**kwargs)
     a.run()
     return a
-if __name__ == '__main__':
-    NodeApp().run()
+#if __name__ == '__main__':
+#    NodeApp().run()

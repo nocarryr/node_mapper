@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project Node Mapper -->
-<!-- Saved: 2014-11-09, 09:17:15 -->
+<!-- Saved: 2014-12-08, 14:45:23 -->
 <!-- Copyright (C) 2014 ,  -->
 <Project version="5.1">
   <Language></Language>
@@ -214,6 +214,7 @@
     <Source>main.py</Source>
     <Source>test.py</Source>
     <Source>node_mapper/node_tree/node_position.py</Source>
+    <Source>node_mapper/kivyui/menu.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

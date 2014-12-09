@@ -80,6 +80,18 @@ class NodeButton(BaseObject):
     @property
     def id(self):
         return self.node.id
+    def unlink(self):
+        self.node.unbind(self)
+        if self.node_link is not None:
+            self.node_link.unlink()
+        for child in self.node.child_nodes.itervalues():
+            child.unlink()
+        if self.widget is not None and self.widget.parent is not None:
+            self.widget.parent.remove_widget(self.widget)
+        if self.node.is_root:
+            self.node_selection.unlink()
+            self.node.unlink()
+        super(NodeButton, self).unlink()
     def build_all(self):
         self._build_all()
     def _build_all(self, **kwargs):

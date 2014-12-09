@@ -14,6 +14,7 @@ class TreeNode(TreeNodePosition):
     _saved_attributes = ['Index', 'parent_id', 'attributes', 'collapsed']
     _saved_class_name = 'TreeNode'
     def __init__(self, **kwargs):
+        self._unlinking = False
         self._parent_id = None
         p = kwargs.get('parent')
         if p is not None:
@@ -55,9 +56,13 @@ class TreeNode(TreeNodePosition):
         i = self.parent.child_nodes.get_zero_centered(child=self)
         return float(i)
     def unlink(self):
+        self._unlinking = True
         self.emit('pre_delete')
-        self.child_nodes.clear()
-        self.position.unlink()
+        self.child_nodes.unbind(self)
+        for child in self.child_nodes.values()[:]:
+            child.unlink()
+        if self.parent:
+            self.parent = None
         super(TreeNode, self).unlink()
     def _fvalidate_parent(self, value):
         if not hasattr(self, 'is_root'):

@@ -296,6 +296,10 @@ class TreeNodePosition(NodePositionBase):
             return
         if self._updating_position_relative:
             return
+        if self._unlinking:
+            return
+        if self.parent and self.parent._unlinking:
+            return
         self._updating_position_relative = True
         y = self.get_zero_centered_index()
         if self.y_invert:
@@ -310,6 +314,8 @@ class TreeNodePosition(NodePositionBase):
         if self.parent is None:
             return
         if self.relative_y is None:
+            return
+        if self._unlinking or self.parent._unlinking:
             return
         if self.parent._adjusting_y_offset_from_children:
             self.y_offset = 0.
@@ -396,6 +402,7 @@ class TreeNodeTree(NodeTree):
     _saved_attributes = ['x_invert', 'y_invert']
     _saved_child_objects = ['nodes_by_path']
     def __init__(self, **kwargs):
+        self._unlinking = False
         self.unparented_nodes = {}
         self._checking_collisions = False
         self._nodes_in_collision = set()
@@ -426,6 +433,12 @@ class TreeNodeTree(NodeTree):
     @nodes_by_path.setter
     def nodes_by_path(self, value):
         return
+    def unlink(self):
+        self._unlinking = True
+        root = self.root_node
+        if root is not None and not root._unlinking:
+            root.unlink()
+        super(TreeNodeTree, self).unlink()
     def _load_saved_attr(self, d, **kwargs):
         if 'nodes' in d['saved_children']:
             d['saved_children']['nodes'].clear()
@@ -481,6 +494,8 @@ class TreeNodeTree(NodeTree):
         if node.id in self.nodes_by_x.get(x, {}):
             del self.nodes_by_x[x][node.id]
     def on_node_x_changed(self, **kwargs):
+        if self._unlinking:
+            return
         node = kwargs.get('obj')
         value = kwargs.get('value')
         old = kwargs.get('old')
@@ -497,10 +512,14 @@ class TreeNodeTree(NodeTree):
         if node.init_complete:
             self.check_collisions()
     def on_node_y_changed(self, **kwargs):
+        if self._unlinking:
+            return
         node = kwargs.get('obj')
         if node.init_complete:
             self.check_collisions()
     def on_node_in_collision(self, **kwargs):
+        if self._unlinking:
+            return
         node = kwargs.get('obj')
         if kwargs.get('value'):
             self._nodes_in_collision.add(node)
@@ -508,6 +527,8 @@ class TreeNodeTree(NodeTree):
         else:
             self._nodes_in_collision.discard(node)
     def on_node_init_complete(self, **kwargs):
+        if self._unlinking:
+            return
         if kwargs.get('value'):
             self.check_collisions()
     def check_collisions(self):
@@ -516,6 +537,8 @@ class TreeNodeTree(NodeTree):
         except TypeError:
             self._checking_collisions = False
     def _check_collisions(self):
+        if self._unlinking:
+            return
         if self._checking_collisions:
             return
         if self._deserializing:

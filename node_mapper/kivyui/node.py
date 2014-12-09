@@ -34,6 +34,8 @@ class NodeSelection(BaseObject):
             self.emit('selected', node=node, value=value)
     def on_node_delete(self, **kwargs):
         node = kwargs.get('obj')
+        if node is None:
+            return
         self.unbind(node)
         node.unbind(self)
         if node.id in self.all_nodes:
@@ -84,13 +86,13 @@ class NodeButton(BaseObject):
         self.node.unbind(self)
         if self.node_link is not None:
             self.node_link.unlink()
-        for child in self.node.child_nodes.itervalues():
-            child.unlink()
+        #for child in self.node.child_nodes.itervalues():
+        #    child.unlink()
         if self.widget is not None and self.widget.parent is not None:
             self.widget.parent.remove_widget(self.widget)
         if self.node.is_root:
             self.node_selection.unlink()
-            self.node.unlink()
+            #self.node.unlink()
         super(NodeButton, self).unlink()
     def build_all(self):
         self._build_all()
@@ -179,8 +181,8 @@ class NodeButton(BaseObject):
         else:
             self.root_widget.add_widget(self.widget)
     def on_node_pre_delete(self, **kwargs):
-        self.node.unbind(self)
         self.emit('delete')
+        self.unlink()
     def on_double_tap(self):
         self._adding_node_from_ui = True
         self.node.add_child()
@@ -342,8 +344,10 @@ class NodeLink(BaseObject):
     def unlink(self):
         self.root_widget.remove_widget(self.dummy_widget)
         self.node_button.node.unbind(self)
-        self.node_button.widget.unbind(self.trigger_draw)
-        self.node_button.widget.parent.unbind(self.trigger_draw)
+        self.node_button.widget.unbind(pos=self.trigger_draw, 
+                                       size=self.trigger_draw)
+        self.node_button.widget.parent.unbind(pos=self.trigger_draw, 
+                                              size=self.trigger_draw)
         super(NodeLink, self).unlink()
     def calc_points(self):
         widget1 = self.node_button.widget

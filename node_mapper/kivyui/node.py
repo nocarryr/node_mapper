@@ -192,7 +192,8 @@ class NodeButton(BaseObject):
         else:
             self.node.collapsed = not self.node.collapsed
     def on_long_touch(self):
-        self.add_editor()
+        #self.add_editor()
+        self.root_widget.show_node_bubble(self)
     def on_other_node_selected(self, **kwargs):
         if kwargs.get('value') is False:
             return

@@ -9,18 +9,21 @@ from kivy.uix.label import Label
 from node_mapper.node_tree.node import REGISTRY as NODE_REGISTRY
 from node_mapper.kivyui.menu import MenuBar
 from node_mapper.kivyui.node import NodeButton
+from node_mapper.kivyui.node_actions import NodeBubble
 
 class MainWin(FloatLayout):
     def __init__(self, **kwargs):
         self._root_node = kwargs.get('root_node')
         self._init_complete = False
         self._nodes_built = False
+        self.root_button = None
         super(MainWin, self).__init__(**kwargs)
         EventLoop.bind(on_start=self.on_event_loop_start)
         self.menu_bar = MenuBar()
         self.add_widget(self.menu_bar)
         self.debug_label = Label()
         self.add_widget(self.debug_label)
+        self.node_bubble = NodeBubble()
         self.menu_bar.file_menu.bind(on_new_file=self.do_file_new, 
                                      on_open_file=self.do_file_open, 
                                      on_save_file=self.do_file_save)
@@ -55,6 +58,9 @@ class MainWin(FloatLayout):
         obj = kwargs.get('node')
         if kwargs.get('value'):
             self.debug_label.text = obj.build_debug_text()
+    def show_node_bubble(self, node_button):
+        self.node_bubble.node_button = node_button
+        self.node_bubble.show(self)
     def on_size(self, instance, value):
         if self._init_complete or value == [1, 1]:
             return

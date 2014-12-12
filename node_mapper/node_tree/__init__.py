@@ -8,7 +8,7 @@ class NodeBase(BaseObject):
         init_complete={'default':False}, 
     )
     _saved_attributes = ['id', 'name']
-    signals_to_register = ['pre_delete']
+    signals_to_register = ['pre_delete', 'post_delete']
     def __init__(self, **kwargs):
         super(NodeBase, self).__init__(**kwargs)
         if 'deserialize' not in kwargs:
@@ -21,6 +21,7 @@ class NodeBase(BaseObject):
         self.node_tree.bind(node_update=self.on_node_tree_nodes_update)
     def unlink(self):
         self.node_tree.remove_node(self)
+        self.emit('post_delete')
         super(NodeBase, self).unlink()
     def build_node_tree(self, **kwargs):
         cls = getattr(self, 'node_tree_class', None)

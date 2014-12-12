@@ -162,6 +162,8 @@ class TreeNodePosition(NodePositionBase):
     def get_y_path(self):
         if self.is_root:
             return [0]
+        if self.parent is None:
+            raise TypeError('%r is unparented' % (self))
         y_path = self.parent.get_y_path()
         y_path.append(self.relative_y)
         return y_path
@@ -301,7 +303,11 @@ class TreeNodePosition(NodePositionBase):
         if self.parent and self.parent._unlinking:
             return
         self._updating_position_relative = True
-        y = self.get_zero_centered_index()
+        try:
+            y = self.get_zero_centered_index()
+        except KeyError:
+            self._updating_position_relative = False
+            return
         if self.y_invert:
             y *= -1.
         self.relative_y = float(y)
@@ -404,6 +410,7 @@ class TreeNodeTree(NodeTree):
     def __init__(self, **kwargs):
         self._unlinking = False
         self.unparented_nodes = {}
+        self._nodes_unlinking = set()
         self._checking_collisions = False
         self._nodes_in_collision = set()
         self.nodes_by_x = {}
@@ -487,7 +494,9 @@ class TreeNodeTree(NodeTree):
         node.bind(x=self.on_node_x_changed, 
                   y=self.on_node_y_changed, 
                   in_collision=self.on_node_in_collision, 
-                  init_complete=self.on_node_init_complete)
+                  init_complete=self.on_node_init_complete, 
+                  pre_delete=self.on_node_pre_delete, 
+                  post_delete=self.on_node_post_delete)
     def unbind_node(self, node):
         x = node.x
         node.unbind(self.on_node_x_changed)
@@ -530,6 +539,14 @@ class TreeNodeTree(NodeTree):
         if self._unlinking:
             return
         if kwargs.get('value'):
+            self.check_collisions()
+    def on_node_pre_delete(self, **kwargs):
+        node = kwargs.get('obj')
+        self._nodes_unlinking.add(node)
+    def on_node_post_delete(self, **kwargs):
+        node = kwargs.get('obj')
+        self._nodes_unlinking.discard(node)
+        if not len(self._nodes_unlinking) and len(self.nodes_by_x):
             self.check_collisions()
     def check_collisions(self):
         try:

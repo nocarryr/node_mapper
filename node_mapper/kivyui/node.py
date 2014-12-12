@@ -127,7 +127,6 @@ class NodeButton(BaseObject):
         d['index'] = self.node.Index
         return str(d)
     def refresh_text(self, **kwargs):
-        print 'kvnode refresh: ', kwargs.get('value')
         if self.widget is None:
             return
         self.widget.text = kwargs.get('value')
@@ -197,7 +196,7 @@ class NodeButton(BaseObject):
     def on_other_node_selected(self, **kwargs):
         if kwargs.get('value') is False:
             return
-        if kwargs.get('node') == self:
+        if kwargs.get('node') is self:
             return
         self.selected = False
         
@@ -283,7 +282,6 @@ class NodeEditor(TextInput):
         button.bind(pos=self.on_button_pos)
         button.bind(size=self.on_button_size)
     def on_text_validate(self):
-        print 'editor validate: ', self.text
         self.node_button.node.name = self.text
     def on_focus(self, instance, value, *args):
         super(NodeEditor, self).on_focus(instance, value, *args)

@@ -201,7 +201,6 @@ class TreeNodePosition(NodePositionBase):
         if other == self:
             return 0
         if other not in self.node_tree.nodes_by_x[self.x].values():
-            print self.x, other.x
             raise TypeError('cannot compare nodes with different x values')
         y_path = self.get_y_path()
         other_y_path = other.get_y_path()

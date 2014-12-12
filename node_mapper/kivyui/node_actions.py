@@ -1,10 +1,4 @@
 from kivy.uix.bubble import Bubble, BubbleButton
-Window = None
-
-#def _get_window():
-#    global Window
-#    from kivy.core.window import Window as _Window
-#    Window = _Window
 
 class Action(object):
     def __init__(self, **kwargs):
@@ -87,7 +81,6 @@ class NodeBubble(Bubble):
         if self.parent is not None:
             return
         self.set_pos_from_node_button()
-        #self.limit_to = self.node_button.widget
         widget.add_widget(self)
     def hide(self):
         if self.parent is None:

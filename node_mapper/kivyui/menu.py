@@ -48,16 +48,13 @@ class MenuDropDown(ToggleButton):
         btn.bind(on_release=lambda btn: self.dropdown.select(item))
         self.dropdown.add_widget(btn)
     def on_dropdown_select(self, instance, value):
-        print 'select: %s' % (value)
         self.dispatch('on_select', value)
+        self.state = 'normal'
     def on_release(self):
         value = self.state
         if value == 'down' and not self._dropdown_active:
             self._dropdown_active = True
             self.dropdown.open(self)
-        #elif value == 'normal' and self._dropdown_active:
-        #    self._dropdown_active = False
-            #self.dropdown.dismiss()
     def on_dropdown_dismiss(self, *args):
         self._dropdown_active = False
         return

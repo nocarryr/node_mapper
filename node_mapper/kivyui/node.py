@@ -297,6 +297,7 @@ class DummyWidget(FloatLayout):
         self._layout_cb = kwargs.get('layout_cb')
         super(DummyWidget, self).__init__(**kwargs)
     def do_layout(self, *args, **kwargs):
+        self.update_geom()
         if self._layout_cb:
             self._layout_cb(*args, **kwargs)
     def update_position(self):
@@ -309,8 +310,8 @@ class DummyWidget(FloatLayout):
     def update_geom(self, *args, **kwargs):
         if self.parent is None:
             return
-        self.size = self.parent.size
         self.pos = self.parent.pos
+        self.size = self.parent.size
         
 class NodeLink(BaseObject):
     _Properties = dict(

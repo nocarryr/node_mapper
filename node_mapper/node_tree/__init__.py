@@ -1,6 +1,50 @@
-from node_mapper.nomadic_recording_lib.Bases import BaseObject
-from node_mapper.nomadic_recording_lib.Bases.misc import setID
+from node_mapper.nomadic_recording_lib.Bases import BaseObject, Color
+from node_mapper.nomadic_recording_lib.Bases.misc import setID, iterbases
 
+
+class NodeColorProps(BaseObject):
+    _saved_child_objects = ['colors']
+    _saved_child_classes = [Color]
+    _color_defaults = ['background', 'border', 'text']
+    _saved_class_name = 'NodeColorProps'
+    def __init__(self, **kwargs):
+        self.color_defaults = {}
+        for cls in iterbases(self):
+            _defaults = getattr(cls, '_color_defaults', None)
+            if isinstance(_defaults, list):
+                for key in _defaults:
+                    if key in self.color_defaults:
+                        continue
+                    self.color_defaults[key] = dict(zip(['hue', 'sat', 'val'], [0., 0., .8]))
+            if not isinstance(_defaults, dict):
+                continue
+            self.color_defaults.update(_defaults)
+        super(NodeColorProps, self).__init__(**kwargs)
+        if 'deserialize' not in kwargs:
+            self.colors = {}
+            for key, cdict in self.color_defaults.iteritems():
+                self.colors[key] = Color(**cdict)
+    def __repr__(self):
+        return '%s: %s' % (self.__class__, self)
+    def __str__(self):
+        return str(self.colors)
+        
+class NodeColorPropsNormal(NodeColorProps):
+    _color_defaults = dict(
+        background={'hue':0., 'sat':0., 'val':.5}, 
+        border={'hue':0., 'sat':0., 'val':.8}, 
+        text={'hue':0., 'sat':0., 'val':1.}, 
+    )
+    _saved_class_name = 'NodeColorPropsNormal'
+    
+class NodeColorPropsSelected(NodeColorProps):
+    _color_defaults = dict(
+        background={'hue':.667, 'sat':.4, 'val':1.}, 
+        border={'hue':0., 'sat':0., 'val':1.}, 
+        text={'hue':0., 'sat':0., 'val':1.}, 
+    )
+    _saved_class_name = 'NodeColorPropsSelected'
+    
 class NodeBase(BaseObject):
     _Properties = dict(
         id={'ignore_type':True, 'fvalidate':'_fvalidate_id'}, 
@@ -8,12 +52,18 @@ class NodeBase(BaseObject):
         init_complete={'default':False}, 
     )
     _saved_attributes = ['id', 'name']
+    _saved_child_objects = ['colors']
+    _saved_child_classes = [NodeColorProps, NodeColorPropsNormal, NodeColorPropsSelected]
     signals_to_register = ['pre_delete', 'post_delete']
     def __init__(self, **kwargs):
         super(NodeBase, self).__init__(**kwargs)
         if 'deserialize' not in kwargs:
             self.id = setID(kwargs.get('id'))
             self.name = kwargs.get('name', '')
+            self.colors = {
+                'normal':NodeColorPropsNormal(), 
+                'selected':NodeColorPropsSelected(), 
+            }
         self.node_tree = kwargs.get('node_tree')
         if self.node_tree is None:
             self.node_tree = self.build_node_tree(**kwargs)

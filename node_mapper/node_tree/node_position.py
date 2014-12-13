@@ -449,6 +449,10 @@ class TreeNodeTree(NodeTree):
         if 'nodes' in d['saved_children']:
             d['saved_children']['nodes'].clear()
         super(TreeNodeTree, self)._load_saved_attr(d, **kwargs)
+    def _get_saved_attr(self, **kwargs):
+        d = super(TreeNodeTree, self)._get_saved_attr(**kwargs)
+        d['saved_children']['nodes'].clear()
+        return d
     def _deserialize_child(self, d):
         node = super(TreeNodeTree, self)._deserialize_child(d)
         for attr in ['x_invert', 'y_invert']:

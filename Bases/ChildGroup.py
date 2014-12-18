@@ -30,7 +30,7 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
     _saved_child_objects = ['indexed_items']
     def __init__(self, **kwargs):
         UserDict.UserDict.__init__(self)
-        self.indexed_items = {}
+        self._indexed_items = {}
         self.deserialize_callback = kwargs.get('deserialize_callback')
         self.parent_obj = kwargs.get('parent_obj')
         self.child_class = kwargs.get('child_class')
@@ -50,7 +50,11 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
         if self.send_child_updates_to_osc:
             self.add_osc_handler(callbacks={'child-update':self._on_osc_child_update})
         self.bind(child_update=self._ChildGroup_on_own_child_update)
-        
+    @property
+    def indexed_items(self):
+        if self.ignore_index:
+            return self.data
+        return self._indexed_items
     def add_child(self, cls=None, **kwargs):
         def do_add_child(child):
             self.update({child.id:child})
@@ -58,8 +62,9 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
                 osc_address = child.id
             else:
                 osc_address = child.Index
-                self.indexed_items.update({child.Index:child})
-                child.bind(Index=self.on_child_Index_changed)
+                if not self.ignore_index:
+                    self.indexed_items.update({child.Index:child})
+                    child.bind(Index=self.on_child_Index_changed)
             if False:#self.osc_enabled and isinstance(child, OSCBaseObject) and not child.osc_enabled:
                 osc_address = str(osc_address)
                 self.LOG.info('ChildGroup %s auto add osc_address %s' % (self.name, osc_address))
@@ -75,12 +80,13 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
             if child.id in self:
                 return
             if not self.ignore_index:
-                index = child.Index
+                index = kwargs.get('Index', child.Index)
                 if index is None:
                     index = kwargs.get('Index', self.find_max_index() + 1)
-                if not self.check_valid_index(index):
-                    self.LOG.warning('Index error: could not add child', self.name, child)
-                    return False
+                if not self._deserializing and not self.parent_obj._deserializing and not self.check_valid_index(index):
+                    if self.indexed_items.get(index) != child:
+                        self.LOG.warning('Index error: could not add child', self.name, self.parent_obj, child)
+                        return False
                 child.Index = index
             child.ChildGroup_parent = self
             return do_add_child(child)
@@ -171,6 +177,8 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
         return type(index) == int and index not in self.indexed_items
         
     def resort_indecies(self):
+        if self._deserializing or self.parent_obj._deserializing:
+            return
         if not self.allow_index_resort:
             return
         if getattr(self, '_sorting_indecies', False):
@@ -257,13 +265,14 @@ class ChildGroup(OSCBaseObject, UserDict.UserDict):
                 items[i] = val
             newd['saved_children'] = {'indexed_items':items}
             d = newd
-        items = d['saved_children']['indexed_items']
-        for key in items.keys()[:]:
-            if type(key) != int:
-                item = items[key]
-                #print 'replacing str index: ', key, int(key), item, self
-                del items[key]
-                items[int(key)] = item
+        if d['attrs']['ignore_index'] is False:
+            items = d['saved_children']['indexed_items']
+            for key in items.keys()[:]:
+                if type(key) != int:
+                    item = items[key]
+                    #print 'replacing str index: ', key, int(key), item, self
+                    del items[key]
+                    items[int(key)] = item
         super(ChildGroup, self)._load_saved_attr(d, **kwargs)
         
     def _deserialize_child(self, d, **kwargs):

@@ -1,5 +1,5 @@
-from node_mapper.nomadic_recording_lib.Bases import BaseObject, Color
-from node_mapper.nomadic_recording_lib.Bases.misc import setID, iterbases
+from nomadic_recording_lib.Bases import BaseObject, Color
+from nomadic_recording_lib.Bases.misc import setID, iterbases
 
 
 class NodeColorProps(BaseObject):

@@ -1,11 +1,19 @@
-from node_mapper.test import test
-from node_mapper.kivyui.main import launch
+import sys
 
-def main(root_node=None):
-    #if root_node is None:
-    #    root_node = test(y_invert=True)
-    return launch(interactive=True, root_node=root_node)
+def kivy_main():
+    from node_mapper.kivyui.main import launch
+    def main(root_node=None):
+        return launch(interactive=True, root_node=root_node)
+    main()
+def clutter_main():
+    from node_mapper.clutterui.main import main
+    main()
     
     
 if __name__ == '__main__':
-    main()
+    if 'kivy' in sys.argv:
+        kivy_main()
+    elif 'clutter' in sys.argv:
+        clutter_main()
+
+

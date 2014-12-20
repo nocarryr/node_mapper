@@ -2,6 +2,7 @@ import threading
 from nomadic_recording_lib.ui.gtk import gtkBaseUI
 from nomadic_recording_lib.ui.gtk.bases import widgets
 from nomadic_recording_lib.ui.gtk.bases import clutter_bases
+from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
 from node_mapper.clutterui.node import Node
@@ -24,29 +25,28 @@ class MainWindow(gtkBaseUI.BaseWindow):
         self.menu_bar = MenuBar()
         vbox.pack_start(self.menu_bar)
         self.scene = clutter_bases.Scene()
-        self.scene.embed.get_stage().set_color(Clutter.Color(0, 0, 0, 255))
+        self.stage = self.scene.embed.get_stage()
+        self.stage.set_background_color(Clutter.Color(1, 1, 1, 255))
         vbox.pack_start(self.scene.embed)
         self.window.add(vbox)
         self.test_draw()
         self.window.show_all()
-        
     def test_draw(self):
         self.root_node = NODE_REGISTRY.get('TreeNode')(y_invert=True, name='root')
-        self.root_actor = Node(stage=self.scene.embed.get_stage(), node=self.root_node)
-        return
-        
-        c = Clutter.Color.new(0, 0, 255, 100)
-        rect = Clutter.Rectangle.new_with_color(c)
-        rect.set_size(150, 50)
-        rect.set_position(200, 200)
-        self.scene.embed.get_stage().add_child(rect)
-        
+        self.root_actor = Node(stage=self.stage, node=self.root_node)
+        self.root_actor.bind(click=self.on_node_click)
+    def on_node_click(self, **kwargs):
+        actor = kwargs.get('obj')
+        click_type = kwargs.get('type')
+        self.menu_bar.debug_label.set_text('%s: %s' % (actor.node.name, click_type))
         
 class MenuBar(widgets.HBox):
     def __init__(self):
         super(MenuBar, self).__init__()
         self.dummy_btn = widgets.Button(label='Placeholder')
         self.pack_start(self.dummy_btn)
+        self.debug_label = gtk.Label()
+        self.pack_start(self.debug_label)
     
 def main():
     app = Application()

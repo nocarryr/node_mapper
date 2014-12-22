@@ -12,7 +12,7 @@ class BaseNodeConnection(BaseObject):
         relative_x={'default':0.}, 
         relative_y={'default':0.}, 
         width={'default':0.}, 
-        height={'default':10.}, 
+        height={'default':20.}, 
     )
     _saved_attributes = ['id', 'label', 'parent_id']
     signals_to_register = ['connector_added', 'pre_delete', 'position_changed']
@@ -53,7 +53,7 @@ class BaseNodeConnection(BaseObject):
                 break
             if c.Index > self.Index:
                 break
-            y += c.relative_y + c.height
+            y = c.relative_y + c.height
         self.relative_y = y
     def bind_parent(self, parent):
         parent.bind(position_changed=self.on_parent_position_changed)
@@ -78,6 +78,10 @@ class BaseNodeConnection(BaseObject):
     def on_parent_position_changed(self, **kwargs):
         kwargs['connection'] = self
         self.emit('position_changed', **kwargs)
+    def __repr__(self):
+        return '<%s> %s' % (self.__class__, self)
+    def __str__(self):
+        return '%s (Index: %s, y: %s' % (self.label, self.Index, self.relative_y)
     
 class InputNodeConnection(BaseNodeConnection):
     _saved_attributes = ['allow_multiple']
@@ -129,6 +133,10 @@ class FreeNode(NodePositionBase):
     def __init__(self, **kwargs):
         self._unlinking = False
         super(FreeNode, self).__init__(**kwargs)
+        if 'deserialize' not in kwargs:
+            for attr in ['x', 'y', 'width', 'height']:
+                if attr in kwargs:
+                    setattr(self, attr, kwargs.get(attr))
         for cg in [self.input_connections, self.output_connections]:
             cg.bind(child_update=self.on_connections_ChildGroup_update)
         self.bind(position_changed=self.on_own_position_changed)
@@ -177,6 +185,8 @@ class FreeNode(NodePositionBase):
             connection_types = [connection_types]
         for connection_type in connection_types:
             cg = getattr(self, '_'.join([connection_type, 'connections']))
+            for connection in cg.itervalues():
+                connection.relative_y = 0.
             for connection in cg.itervalues():
                 connection.calc_geom()
     def on_connections_ChildGroup_update(self, **kwargs):
@@ -352,8 +362,10 @@ def test():
     tree = FreeNodeTree()
     last_node = None
     for x in range(4):
+        x += 1
         node = tree.add_node(name=str(x), x=x*200., y=x*10., height=100.)
-        for i in range(2):
+        for i in range(4):
+            i += 1
             in_c = node.add_connection(type='input', label=str(i))
             node.add_connection(type='output', label=str(i))
             if last_node is not None:

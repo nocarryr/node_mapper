@@ -56,6 +56,7 @@ class NodeBase(BaseObject):
     _saved_child_classes = [NodeColorProps, NodeColorPropsNormal, NodeColorPropsSelected]
     signals_to_register = ['pre_delete', 'post_delete']
     def __init__(self, **kwargs):
+        self.node_tree = kwargs.get('node_tree')
         super(NodeBase, self).__init__(**kwargs)
         if 'deserialize' not in kwargs:
             self.id = setID(kwargs.get('id'))
@@ -64,7 +65,6 @@ class NodeBase(BaseObject):
                 'normal':NodeColorPropsNormal(), 
                 'selected':NodeColorPropsSelected(), 
             }
-        self.node_tree = kwargs.get('node_tree')
         if self.node_tree is None:
             self.node_tree = self.build_node_tree(**kwargs)
         self.node_tree.add_node(self)
@@ -113,7 +113,10 @@ class NodeTree(BaseObject):
         self.node_class = None
         super(NodeTree, self).__init__(**kwargs)
         if 'deserialize' not in kwargs:
+            self.node_class_name = kwargs.get('node_class_name')
             self.nodes = {}
+        if self.node_class_name is not None:
+            self.node_class = REGISTRY.get(self.node_class_name)
     @property
     def nodes(self):
         nodes = getattr(self, '_nodes', None)
@@ -125,7 +128,9 @@ class NodeTree(BaseObject):
         if hasattr(self, '_nodes'):
             return
         self._nodes = value
-    def _deserialize_child(self, d):
+    def _deserialize_child(self, d, **kwargs):
+        if kwargs.get('saved_child_obj') != 'nodes':
+            return super(NodeTree, self)._deserialize_child(d, **kwargs)
         cls = REGISTRY.get(self.node_class_name)
         if self.node_class is None:
             self.node_class = cls

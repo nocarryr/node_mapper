@@ -3,7 +3,7 @@ from node_mapper.node_tree import NodeBase, NodeTree, REGISTRY
 class NodePositionBase(NodeBase):
     _Properties = dict(
         x_invert={'default':False}, 
-        y_invert={'default':False}, 
+        y_invert={'default':True}, 
         x={'default':0.}, 
         y={'default':0.}, 
         width={'default':100.}, 
@@ -26,8 +26,12 @@ class NodePositionBase(NodeBase):
     signals_to_register = ['position_changed']
     def __init__(self, **kwargs):
         super(NodePositionBase, self).__init__(**kwargs)
-        self.x_invert = kwargs.get('x_invert', False)
-        self.y_invert = kwargs.get('y_invert', False)
+        for key in ['x_invert', 'y_invert']:
+            if key in kwargs:
+                val = kwargs.get(key)
+            else:
+                val = getattr(self.node_tree, key)
+            setattr(self, key, val)
         self.bind(property_changed=self.on_own_property_changed)
     def _fget_left(self):
         w = self.width / 2.
@@ -402,7 +406,7 @@ class TreeNodePosition(NodePositionBase):
 class TreeNodeTree(NodeTree):
     _Properties = dict(
         x_invert={'default':False}, 
-        y_invert={'default':False}, 
+        y_invert={'default':True}, 
     )
     _saved_attributes = ['x_invert', 'y_invert']
     _saved_child_objects = ['nodes_by_path']
@@ -414,6 +418,11 @@ class TreeNodeTree(NodeTree):
         self._nodes_in_collision = set()
         self.nodes_by_x = {}
         super(TreeNodeTree, self).__init__(**kwargs)
+        if 'deserialize' not in kwargs:
+            for key in ['x_invert', 'y_invert']:
+                if key not in kwargs:
+                    continue
+                setattr(self, key, kwargs.get(key))
     @property
     def root_node(self):
         by_x = self.nodes_by_x.get(0., {})
@@ -453,10 +462,11 @@ class TreeNodeTree(NodeTree):
         d = super(TreeNodeTree, self)._get_saved_attr(**kwargs)
         d['saved_children']['nodes'].clear()
         return d
-    def _deserialize_child(self, d):
+    def _deserialize_child(self, d, **kwargs):
+        if kwargs.get('saved_child_obj') != 'nodes_by_path':
+            return super(TreeNodeTree, self)._deserialize_child(d, **kwargs)
+        kwargs['saved_child_obj'] = 'nodes'
         node = super(TreeNodeTree, self)._deserialize_child(d)
-        for attr in ['x_invert', 'y_invert']:
-            setattr(node, attr, getattr(self, attr))
         self.bind_node(node)
         if not node.is_root and node.parent is None:
             if node.parent_id not in self.unparented_nodes:

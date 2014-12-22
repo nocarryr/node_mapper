@@ -6,7 +6,9 @@ from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
 from node_mapper.clutterui.node import Node
+from node_mapper.clutterui.free_node import FreeNode
 from node_mapper.node_tree.node import REGISTRY as NODE_REGISTRY
+from node_mapper.node_tree.free_node import test as free_node_test
 
 class Application(gtkBaseUI.Application):
     def __init__(self, **kwargs):
@@ -29,12 +31,20 @@ class MainWindow(gtkBaseUI.BaseWindow):
         self.stage.set_background_color(Clutter.Color(1, 1, 1, 255))
         vbox.pack_start(self.scene.embed)
         self.window.add(vbox)
-        self.test_draw()
+        self.test_free_node()
         self.window.show_all()
     def test_draw(self):
         self.root_node = NODE_REGISTRY.get('TreeNode')(y_invert=True, name='root')
         self.root_actor = Node(stage=self.stage, node=self.root_node)
         self.root_actor.bind(click=self.on_node_click)
+    def test_free_node(self):
+        self.node_tree = free_node_test()
+        self.node_widgets = {}
+        center_y = self.stage.get_height() / 2.
+        for node in self.node_tree.nodes.itervalues():
+            node.y = center_y
+            node_widget = FreeNode(stage=self.stage, node=node)
+            self.node_widgets[node.id] = node_widget
     def on_node_click(self, **kwargs):
         actor = kwargs.get('obj')
         click_type = kwargs.get('type')

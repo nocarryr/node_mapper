@@ -17,8 +17,8 @@ class Node(BaseObject):
         self.container.set_reactive(True)
         layout = Clutter.BoxLayout.new()
         self.container.set_layout_manager(layout)
-        self.text = TextBox(text=self.node.name, color=self.node.colors['normal'].colors['text'])
-        self.container.set_background_color(color_to_clutter(self.node.colors['normal'].colors['background']))
+        self.text = TextBox(text=self.node.name, color=self.node.colors['normal'].text)
+        self.container.set_background_color(color_to_clutter(self.node.colors['normal'].background))
         self.stage.add_child(self.container)
         self.update_geom()
         self.container.add_child(self.text.widget)
@@ -48,18 +48,27 @@ class TextBox(BaseObject):
     _Properties = dict(
         text = {'default':''}, 
     )
+    alignment_map = dict(
+        fill=Clutter.ActorAlign.FILL, 
+        start=Clutter.ActorAlign.START, 
+        center=Clutter.ActorAlign.CENTER, 
+        end=Clutter.ActorAlign.END, 
+    )
     def __init__(self, **kwargs):
         super(TextBox, self).__init__(**kwargs)
         w = self.widget = Clutter.Text.new()
-        w.set_reactive(False)
-        w.set_x_align(Clutter.ActorAlign.CENTER)
-        w.set_y_align(Clutter.ActorAlign.CENTER)
+        w.set_reactive(kwargs.get('reactive', False))
+        x_align = kwargs.get('x_align', 'center')
+        y_align = kwargs.get('y_align', 'center')
+        w.set_x_align(self.alignment_map.get(x_align))
+        w.set_y_align(self.alignment_map.get(y_align))
         w.set_x_expand(True)
         w.set_y_expand(True)
         w.set_font_name('Mono 10')
         w.set_color(color_to_clutter(kwargs.get('color')))
+        w.set_background_color(Clutter.Color.new(0, 0, 0, 0))
         self.bind(text=self.on_text_set)
-        self.text = kwargs.get('text')
+        self.text = kwargs.get('text', '')
     def on_text_set(self, **kwargs):
         value = kwargs.get('value')
         if self.widget.get_text() == value:

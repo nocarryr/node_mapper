@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project Node Mapper -->
-<!-- Saved: 2014-12-18, 14:42:47 -->
+<!-- Saved: 2014-12-21, 13:13:08 -->
 <!-- Copyright (C) 2014 ,  -->
 <Project version="5.1">
   <Language></Language>
@@ -219,6 +219,7 @@
     <Source>node_mapper/clutterui/__init__.py</Source>
     <Source>node_mapper/clutterui/main.py</Source>
     <Source>node_mapper/clutterui/node.py</Source>
+    <Source>node_mapper/node_tree/free_node.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

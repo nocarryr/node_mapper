@@ -24,6 +24,12 @@ class NodeColorProps(BaseObject):
             self.colors = {}
             for key, cdict in self.color_defaults.iteritems():
                 self.colors[key] = Color(**cdict)
+    def __getattr__(self, attr):
+        if hasattr(self, 'colors'):
+            color = self.colors.get(attr)
+            if color is not None:
+                return color
+        return super(NodeColorProps, self).__getattr__(attr)
     def __repr__(self):
         return '%s: %s' % (self.__class__, self)
     def __str__(self):

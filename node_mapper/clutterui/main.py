@@ -6,7 +6,7 @@ from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
 from node_mapper.clutterui.node import Node
-from node_mapper.clutterui.free_node import FreeNode
+from node_mapper.clutterui.free_node import FreeNode, Connector
 from node_mapper.node_tree.node import REGISTRY as NODE_REGISTRY
 from node_mapper.node_tree.free_node import test as free_node_test
 
@@ -40,11 +40,14 @@ class MainWindow(gtkBaseUI.BaseWindow):
     def test_free_node(self):
         self.node_tree = free_node_test()
         self.node_widgets = {}
+        self.connectors = {}
         center_y = self.stage.get_height() / 2.
         for node in self.node_tree.nodes.itervalues():
             node.y = center_y
             node_widget = FreeNode(stage=self.stage, node=node)
             self.node_widgets[node.id] = node_widget
+        for c in self.node_tree.connectors.itervalues():
+            self.connectors[c.id] = Connector(stage=self.stage, connector=c)
     def on_node_click(self, **kwargs):
         actor = kwargs.get('obj')
         click_type = kwargs.get('type')

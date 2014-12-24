@@ -28,6 +28,25 @@ class BaseNodeConnection(BaseObject):
     def unlink(self):
         self.emit('pre_delete', obj=self)
         super(BaseNodeConnection, self).unlink()
+    @property
+    def x(self):
+        p = self.parent
+        if p is None:
+            x = 0.
+        else:
+            x = p.x
+        return x + self.relative_x
+    @property
+    def y(self):
+        p = self.parent
+        if p is None:
+            y = 0.
+        else:
+            y = p.y
+        return y + self.relative_y
+    @property
+    def absolute_pos(self):
+        return {'x':self.x, 'y':self.y}
     def can_connect_to(self, other):
         if not self._can_connect_to(other):
             return False
@@ -105,6 +124,9 @@ class InputNodeConnection(BaseNodeConnection):
         c = NodeConnector(source=self, dest=other)
         self.emit('connector_added', connection=self, connector=c)
         return c
+    def on_parent_position_changed(self, **kwargs):
+        kwargs['connection_type'] = 'input'
+        super(InputNodeConnection, self).on_parent_position_changed(**kwargs)
         
 class OutputNodeConnection(BaseNodeConnection):
     _saved_class_name = 'OutputNodeConnection'
@@ -121,6 +143,9 @@ class OutputNodeConnection(BaseNodeConnection):
         c = NodeConnector(dest=self, source=other)
         self.emit('connector_added', connection=self, connector=c)
         return c
+    def on_parent_position_changed(self, **kwargs):
+        kwargs['connection_type'] = 'output'
+        super(OutputNodeConnection, self).on_parent_position_changed(**kwargs)
     
 class FreeNode(NodePositionBase):
     _ChildGroups = dict(

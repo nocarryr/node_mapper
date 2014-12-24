@@ -3,6 +3,7 @@ from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 Clutter = clutter_bases.clutter
 
 from node_mapper.clutterui.node import color_to_clutter, TextBox
+from node_mapper.clutterui.line_drawing import Line
 
 class FreeNode(BaseObject):
     def __init__(self, **kwargs):
@@ -49,3 +50,37 @@ class Connection(BaseObject):
         w = self.widget
         w.set_position(c.relative_x, c.relative_y)
         w.set_size(c.width, c.height)
+        
+class Connector(BaseObject):
+    def __init__(self, **kwargs):
+        super(Connector, self).__init__(**kwargs)
+        self.stage = kwargs.get('stage')
+        self.connector = kwargs.get('connector')
+        wkwargs = self.build_line_coords()
+        wkwargs['parent_widget'] = self.stage
+        self.line = Line(**wkwargs)
+        self.connector.bind(position_changed=self.on_connector_pos_changed)
+    def build_line_coords(self, connection_type=None):
+        if connection_type is None:
+            connection_type = ['source', 'dest']
+        else:
+            connection_type = [connection_type]
+        d = {}
+        if 'source' in connection_type:
+            c = self.connector.source
+            if c is None:
+                d['start_pos'] = {'x':0., 'y':0.}
+            else:
+                d['start_pos'] = {'x':c.x+c.width, 'y':c.y+(c.height/2.)}
+        if 'dest' in connection_type:
+            c = self.connector.dest
+            if c is None:
+                d['end_pos'] = {'x':0., 'y':0.}
+            else:
+                d['end_pos'] = {'x':c.x, 'y':c.y+(c.height/2.)}
+        return d
+    def on_connector_pos_changed(self, **kwargs):
+        connection_type = {'input':'dest', 'output':'source'}.get(kwargs.get('connection_type'))
+        d = self.build_line_coords(connection_type)
+        for key, val in d.iteritems():
+            setattr(self.line, key, val)

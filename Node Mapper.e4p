@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project Node Mapper -->
-<!-- Saved: 2014-12-22, 15:56:51 -->
+<!-- Saved: 2014-12-24, 12:32:57 -->
 <!-- Copyright (C) 2014 ,  -->
 <Project version="5.1">
   <Language></Language>
@@ -221,6 +221,7 @@
     <Source>node_mapper/clutterui/node.py</Source>
     <Source>node_mapper/node_tree/free_node.py</Source>
     <Source>node_mapper/clutterui/free_node.py</Source>
+    <Source>node_mapper/clutterui/line_drawing.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

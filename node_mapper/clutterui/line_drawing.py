@@ -4,6 +4,17 @@ Clutter = clutter_bases.clutter
 
 #from node_mapper.clutterui.node import color_to_clutter
 
+class LineContainer(Clutter.Actor):
+    def __init__(self, **kwargs):
+        self._parent_allocation_signal_id = None
+        super(LineContainer, self).__init__()
+        self.set_x_align(Clutter.ActorAlign.FILL)
+        self.set_y_align(Clutter.ActorAlign.FILL)
+        self.set_x_expand(True)
+        self.set_y_expand(True)
+        layout = Clutter.BinLayout()
+        self.set_layout_manager(layout)
+        
 class Line(BaseObject):
     _Properties = dict(
         start_pos = {'default':{'x':-1., 'y':-1.}}, 
@@ -19,12 +30,6 @@ class Line(BaseObject):
         self.parent_widget = kwargs.get('parent_widget')
         self.widget = LineCanvas(line=self)
         self.parent_widget.add_child(self.widget)
-        self.widget.set_position(*self.parent_widget.get_position())
-        self.widget.set_size(*self.parent_widget.get_size())
-        c = Clutter.BindConstraint.new(self.parent_widget, 
-                                       Clutter.BindCoordinate.ALL, 
-                                       0.0)
-        self.widget.add_constraint(c)
         self.bind(start_x=self.on_start_xy_changed, 
                   start_y=self.on_start_xy_changed, 
                   end_x=self.on_end_xy_changed, 
@@ -66,7 +71,7 @@ class Line(BaseObject):
                 continue
             setattr(self, '_'.join(['start', key]), value[key])
         self._props_updating.discard('start_pos')
-        self.widget.queue_redraw()
+        self.widget.queue_canvas_redraw()
     def on_end_pos_changed(self, **kwargs):
         if 'end_xy' in self._props_updating:
             return
@@ -78,25 +83,55 @@ class Line(BaseObject):
                 continue
             setattr(self, '_'.join(['end', key]), value[key])
         self._props_updating.discard('end_pos')
-        self.widget.queue_redraw()
+        self.widget.queue_canvas_redraw()
         
 class LineCanvas(Clutter.Actor):
     def __init__(self, **kwargs):
+        self._parent_allocation_signal_id = None
+        self._setting_canvas_size = False
         super(LineCanvas, self).__init__()
+        self.set_x_align(Clutter.ActorAlign.FILL)
+        self.set_y_align(Clutter.ActorAlign.FILL)
+        self.set_x_expand(True)
+        self.set_y_expand(True)
+        self.set_reactive(True)
         self.line = kwargs.get('line')
         self.canvas = Clutter.Canvas.new()
+        self.canvas.set_size(*self.get_size())
         self.set_content(self.canvas)
         self.canvas.connect('draw', self.on_canvas_draw)
-    def queue_redraw(self):
+        self.connect('parent-set', self.on_parent_set)
+    def on_parent_set(self, actor, old):
+        if old is not None:
+            old.disconnect(self._parent_allocation_signal_id)
+            self._parent_allocation_signal_id = None
+        parent = self.get_parent()
+        if parent is None:
+            return
+        s_id = parent.connect('allocation-changed', self.on_parent_allocation_changed)
+        self._parent_allocation_signal_id = s_id
+        self.on_parent_allocation_changed()
+    def on_parent_allocation_changed(self, *args):
+        self.canvas.set_size(*self.get_size())
+    def queue_canvas_redraw(self, *args):
+        #if min(self.line.start_pos.values()) < 0:
+        #    return
+        #if min(self.line.end_pos.values()) < 0:
+        #    return
+        #r = self.canvas.set_size(*self.get_size())
+        #if not r:
+        if self._setting_canvas_size:
+            return
+        self.canvas.invalidate()
+    def on_canvas_draw(self, canvas, context, width, height):
         if min(self.line.start_pos.values()) < 0:
             return
         if min(self.line.end_pos.values()) < 0:
             return
-        self.canvas.invalidate()
-    def set_size(self, *args):
-        super(LineCanvas, self).set_size(*args)
-        self.canvas.set_size(*args)
-    def on_canvas_draw(self, canvas, context, width, height):
+        #print 'parent size=(%s, %s), actor size=(%s, %s), canvas size=(%s, %s), start_pos=%s, end_pos=%s' % (
+        #    self.get_parent().get_width(), self.get_parent().get_height(), 
+        #    self.get_width(), self.get_height(), width, height, 
+        #    self.line.start_pos, self.line.end_pos)
         context.set_source_rgba(0., 0., 0., 0.)
         context.move_to(self.line.start_x, self.line.start_y)
         context.set_source_rgba(0., 0., 1., 1.)

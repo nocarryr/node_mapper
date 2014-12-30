@@ -2,6 +2,8 @@ from nomadic_recording_lib.Bases import BaseObject
 from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 Clutter = clutter_bases.clutter
 
+from node_mapper.clutterui import actions
+
 def color_to_clutter(color):
     l = [int(getattr(color, k)*255) for k in ['red', 'green', 'blue']]
     l.append(255)
@@ -56,21 +58,40 @@ class TextBox(BaseObject):
     )
     def __init__(self, **kwargs):
         super(TextBox, self).__init__(**kwargs)
-        w = self.widget = Clutter.Text.new()
-        w.set_reactive(kwargs.get('reactive', False))
-        x_align = kwargs.get('x_align', 'center')
-        y_align = kwargs.get('y_align', 'center')
-        w.set_x_align(self.alignment_map.get(x_align))
-        w.set_y_align(self.alignment_map.get(y_align))
+        w = self.widget = Clutter.Actor.new()
+        layout = Clutter.BinLayout()
+        w.set_layout_manager(layout)
+        twkwargs = kwargs.copy()
+        twkwargs['text_box'] = self
+        tw = self.text_widget = TextActor(**twkwargs)
+        #tw.set_reactive(kwargs.get('reactive', False))
+        w.set_x_align(self.alignment_map.get('fill'))
+        w.set_y_align(self.alignment_map.get('fill'))
         w.set_x_expand(True)
         w.set_y_expand(True)
-        w.set_font_name('Mono 10')
-        w.set_color(color_to_clutter(kwargs.get('color')))
-        w.set_background_color(Clutter.Color.new(0, 0, 0, 0))
+        tw.set_font_name('Mono 10')
+        tw.set_color(color_to_clutter(kwargs.get('color')))
+        tw.set_background_color(Clutter.Color.new(0, 0, 0, 0))
+        w.add_child(tw)
         self.bind(text=self.on_text_set)
         self.text = kwargs.get('text', '')
     def on_text_set(self, **kwargs):
         value = kwargs.get('value')
-        if self.widget.get_text() == value:
+        if self.text_widget.get_text() == value:
             return
-        self.widget.set_text(value)
+        self.text_widget.set_text(value)
+    
+class TextActor(Clutter.Text, actions.Clickable):
+    def __init__(self, **kwargs):
+        super(TextActor, self).__init__()
+        self.text_box = kwargs.get('text_box')
+        x_align = kwargs.get('x_align', 'center')
+        y_align = kwargs.get('y_align', 'center')
+        alignment_map = self.text_box.alignment_map
+        self.set_x_align(alignment_map.get(x_align))
+        self.set_y_align(alignment_map.get(y_align))
+        self.set_x_expand(True)
+        self.set_y_expand(True)
+        self.init_actions(**kwargs)
+    def trigger_action(self, **kwargs):
+        self.text_box.on_widget_action(**kwargs)

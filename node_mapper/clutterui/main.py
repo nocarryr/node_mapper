@@ -5,8 +5,9 @@ from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
+from node_mapper.clutterui.line_drawing import LineContainer
 from node_mapper.clutterui.node import Node
-from node_mapper.clutterui.free_node import FreeNode, Connector
+from node_mapper.clutterui.free_node import NodeContainer, FreeNode, Connector
 from node_mapper.node_tree.node import REGISTRY as NODE_REGISTRY
 from node_mapper.node_tree.free_node import test as free_node_test
 
@@ -28,7 +29,10 @@ class MainWindow(gtkBaseUI.BaseWindow):
         vbox.pack_start(self.menu_bar)
         self.scene = clutter_bases.Scene()
         self.stage = self.scene.embed.get_stage()
+        #self.stage.connect('allocation-changed', self.on_stage_allocation)
         self.stage.set_background_color(Clutter.Color(1, 1, 1, 255))
+        self.mouse_pos = {'stage':[0, 0], 'connector':[0, 0]}
+        #self.stage.connect('motion-event', self.on_stage_motion)
         vbox.pack_start(self.scene.embed)
         self.window.add(vbox)
         self.test_free_node()
@@ -38,16 +42,48 @@ class MainWindow(gtkBaseUI.BaseWindow):
         self.root_actor = Node(stage=self.stage, node=self.root_node)
         self.root_actor.bind(click=self.on_node_click)
     def test_free_node(self):
+        layout = Clutter.BinLayout()
+        self.stage.set_layout_manager(layout)
+        self.line_container = LineContainer()
+        self.node_container = NodeContainer()
+        self.stage.add_child(self.line_container)
+        self.stage.add_child(self.node_container)
         self.node_tree = free_node_test()
         self.node_widgets = {}
         self.connectors = {}
         center_y = self.stage.get_height() / 2.
         for node in self.node_tree.nodes.itervalues():
             node.y = center_y
-            node_widget = FreeNode(stage=self.stage, node=node)
+            node_widget = FreeNode(node=node, container=self.node_container)
             self.node_widgets[node.id] = node_widget
         for c in self.node_tree.connectors.itervalues():
-            self.connectors[c.id] = Connector(stage=self.stage, connector=c)
+            self.connectors[c.id] = Connector(connector=c, container=self.line_container)
+        #self.connectors.values()[0].line.widget.connect('motion-event', self.on_connector_motion)
+    def on_stage_allocation(self, stage, box, flags):
+        print 'stage size: ', stage.get_size()
+        w = box.x2 - box.x1
+        h = box.y2 - box.y1
+        print 'box size: ', (w, h)
+        if hasattr(self, 'line_container'):
+            print 'line_container: ', self.line_container.get_size()
+        if hasattr(self, 'node_container'):
+            print 'node_container', self.node_container.get_size()
+        if hasattr(self, 'connectors'):
+            w = self.connectors.values()[0].line.widget
+            print 'connector: ', w.get_size()
+            print 'canvas: ', (w.canvas.get_property('width'), w.canvas.get_property('height'))
+    def on_stage_motion(self, stage, e):
+        d = self.mouse_pos['stage']
+        d[0] = e.x
+        d[1] = e.y
+        self.update_debug()
+    def on_connector_motion(self, c, e):
+        d = self.mouse_pos['connector']
+        d[0] = e.x
+        d[1] = e.y
+        self.update_debug()
+    def update_debug(self):
+        self.menu_bar.debug_label.set_text('stage: %s, connector: %s' % (self.mouse_pos['stage'], self.mouse_pos['connector']))
     def on_node_click(self, **kwargs):
         actor = kwargs.get('obj')
         click_type = kwargs.get('type')

@@ -30,23 +30,27 @@ class BaseNodeConnection(BaseObject):
         super(BaseNodeConnection, self).unlink()
     @property
     def x(self):
+        return self.get_x()
+    @property
+    def y(self):
+        return self.get_y()
+    @property
+    def absolute_pos(self):
+        return {'x':self.x, 'y':self.y}
+    def get_x(self):
         p = self.parent
         if p is None:
             x = 0.
         else:
             x = p.x
         return x + self.relative_x
-    @property
-    def y(self):
+    def get_y(self):
         p = self.parent
         if p is None:
             y = 0.
         else:
             y = p.y
-        return y + self.relative_y
-    @property
-    def absolute_pos(self):
-        return {'x':self.x, 'y':self.y}
+        return (y + self.relative_y) + (self.height / 2.)
     def can_connect_to(self, other):
         if not self._can_connect_to(other):
             return False
@@ -121,7 +125,7 @@ class InputNodeConnection(BaseNodeConnection):
     def connect_to(self, other):
         if not self.can_connect_to(other):
             return False
-        c = NodeConnector(source=self, dest=other)
+        c = NodeConnector(dest=self, source=other)
         self.emit('connector_added', connection=self, connector=c)
         return c
     def on_parent_position_changed(self, **kwargs):
@@ -130,6 +134,9 @@ class InputNodeConnection(BaseNodeConnection):
         
 class OutputNodeConnection(BaseNodeConnection):
     _saved_class_name = 'OutputNodeConnection'
+    def get_x(self):
+        x = super(OutputNodeConnection, self).get_x()
+        return x + self.width
     def calc_geom(self):
         super(OutputNodeConnection, self).calc_geom()
         self.relative_x = self.parent.width / 2.
@@ -140,7 +147,7 @@ class OutputNodeConnection(BaseNodeConnection):
     def connect_to(self, other):
         if not self.can_connect_to(other):
             return False
-        c = NodeConnector(dest=self, source=other)
+        c = NodeConnector(source=self, dest=other)
         self.emit('connector_added', connection=self, connector=c)
         return c
     def on_parent_position_changed(self, **kwargs):
@@ -388,13 +395,13 @@ def test():
     last_node = None
     for x in range(4):
         x += 1
-        node = tree.add_node(name=str(x), x=x*200., y=x*10., height=100.)
+        node = tree.add_node(name=str(x), x=x*200., y=0., height=100.)
         for i in range(4):
             i += 1
-            in_c = node.add_connection(type='input', label=str(i))
-            node.add_connection(type='output', label=str(i))
-            if last_node is not None:
-                last_c = last_node.find_connection(type='output', label=str(i))
+            in_c = node.add_connection(type='input', label='in %s' % (i))
+            node.add_connection(type='output', label='out %s' % (i))
+            if last_node is not None and x == 2 and i == 1:
+                last_c = last_node.find_connection(type='output', label='out %s' % (i))
                 last_c.connect_to(in_c)
         if last_node is None:
             last_node = node

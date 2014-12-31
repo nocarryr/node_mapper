@@ -100,18 +100,8 @@ class LineCanvas(Clutter.Actor):
         self.canvas.set_size(*self.get_size())
         self.set_content(self.canvas)
         self.canvas.connect('draw', self.on_canvas_draw)
-        self.connect('parent-set', self.on_parent_set)
-    def on_parent_set(self, actor, old):
-        if old is not None:
-            old.disconnect(self._parent_allocation_signal_id)
-            self._parent_allocation_signal_id = None
-        parent = self.get_parent()
-        if parent is None:
-            return
-        s_id = parent.connect('allocation-changed', self.on_parent_allocation_changed)
-        self._parent_allocation_signal_id = s_id
-        self.on_parent_allocation_changed()
-    def on_parent_allocation_changed(self, *args):
+        self.connect('notify::size', self.on_size_property_changed)
+    def on_size_property_changed(self, *args):
         self.canvas.set_size(*self.get_size())
     def queue_canvas_redraw(self, *args):
         #if min(self.line.start_pos.values()) < 0:

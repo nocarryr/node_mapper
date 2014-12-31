@@ -49,6 +49,7 @@ class Node(BaseObject):
 class TextBox(BaseObject):
     _Properties = dict(
         text = {'default':''}, 
+        enable_edit = {'default':False}, 
     )
     alignment_map = dict(
         fill=Clutter.ActorAlign.FILL, 
@@ -72,14 +73,35 @@ class TextBox(BaseObject):
         tw.set_font_name('Mono 10')
         tw.set_color(color_to_clutter(kwargs.get('color')))
         tw.set_background_color(Clutter.Color.new(0, 0, 0, 0))
+        tw.connect('activate', self.on_text_widget_activate)
+        tw.connect('key-focus-out', self.on_text_widget_key_focus_out)
         w.add_child(tw)
-        self.bind(text=self.on_text_set)
+        self.bind(text=self.on_text_set, 
+                  enable_edit=self.on_enable_edit_set)
         self.text = kwargs.get('text', '')
+    def on_enable_edit_set(self, **kwargs):
+        value = kwargs.get('value')
+        tw = self.text_widget
+        tw.set_activatable(value)
+        tw.set_selectable(value)
+        tw.set_editable(value)
+        if value:
+            tw.grab_key_focus()
+    def on_text_widget_activate(self, *args):
+        if self.enable_edit:
+            self.text = self.text_widget.get_text()
+            self.enable_edit = False
+    def on_text_widget_key_focus_out(self, *args):
+        if self.enable_edit:
+            self.text_widget.set_text(self.text)
+            self.enable_edit = False
     def on_text_set(self, **kwargs):
         value = kwargs.get('value')
         if self.text_widget.get_text() == value:
             return
         self.text_widget.set_text(value)
+    def on_widget_action(self, **kwargs):
+        pass
     
 class TextActor(Clutter.Text, actions.Clickable):
     def __init__(self, **kwargs):

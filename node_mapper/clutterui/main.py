@@ -49,6 +49,7 @@ class MainWindow(gtkBaseUI.BaseWindow):
         self.stage.add_child(self.line_container)
         self.stage.add_child(self.node_container)
         self.node_tree = free_node_test()
+        self.node_tree.bind(connector_added=self.on_node_tree_connector_added)
         self.node_widgets = {}
         self.connectors = {}
         center_y = self.stage.get_height() / 2.
@@ -59,6 +60,9 @@ class MainWindow(gtkBaseUI.BaseWindow):
         for c in self.node_tree.connectors.itervalues():
             self.connectors[c.id] = Connector(connector=c, container=self.line_container)
         #self.connectors.values()[0].line.widget.connect('motion-event', self.on_connector_motion)
+    def on_node_tree_connector_added(self, **kwargs):
+        c = kwargs.get('connector')
+        self.connectors[c.id] = Connector(connector=c, container=self.line_container)
     def on_stage_allocation(self, stage, box, flags):
         print 'stage size: ', stage.get_size()
         w = box.x2 - box.x1

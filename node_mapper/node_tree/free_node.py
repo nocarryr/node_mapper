@@ -104,7 +104,7 @@ class BaseNodeConnection(BaseObject):
     def __repr__(self):
         return '<%s> %s' % (self.__class__, self)
     def __str__(self):
-        return '%s (Index: %s, y: %s' % (self.label, self.Index, self.relative_y)
+        return '%s of Node %s' % (self.label, self.parent)
     
 class InputNodeConnection(BaseNodeConnection):
     _saved_attributes = ['allow_multiple']
@@ -324,6 +324,10 @@ class NodeConnector(BaseObject):
         self.find_connections(node=node)
         if self.connections_found:
             self.node_tree.unbind(self.on_node_tree_node_update)
+    def __repr__(self):
+        return str(self)
+    def __str__(self):
+        return 'Connection: source=%s, dest=%s' % (self.source, self.dest)
         
 class FreeNodeTree(NodeTree):
     _Properties = dict(
@@ -400,7 +404,7 @@ def test():
             i += 1
             in_c = node.add_connection(type='input', label='in %s' % (i))
             node.add_connection(type='output', label='out %s' % (i))
-            if last_node is not None and x == 2 and i == 1:
+            if last_node is not None and x == 2 and i <= 2:
                 last_c = last_node.find_connection(type='output', label='out %s' % (i))
                 last_c.connect_to(in_c)
         if last_node is None:

@@ -122,7 +122,11 @@ class LineCanvas(Clutter.Actor):
         #    self.get_parent().get_width(), self.get_parent().get_height(), 
         #    self.get_width(), self.get_height(), width, height, 
         #    self.line.start_pos, self.line.end_pos)
+        context.save()
         context.set_source_rgba(0., 0., 0., 0.)
+        context.set_operator(0)
+        context.paint()
+        context.restore()
         context.move_to(self.line.start_x, self.line.start_y)
         context.set_source_rgba(0., 0., 1., 1.)
         context.set_line_width(2)

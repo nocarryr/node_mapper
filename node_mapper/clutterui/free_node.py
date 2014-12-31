@@ -33,14 +33,50 @@ class FreeNode(BaseObject):
         for cg in [n.input_connections, n.output_connections]:
             for c in cg.itervalues():
                 self.add_connection(c)
+        self.node.bind(x=self.on_node_pos_changed, 
+                       y=self.on_node_pos_changed)
+        self.widget.connect('notify::position', self.on_widget_pos_changed)
     def add_connection(self, c):
         obj = Connection(parent=self, connection=c)
         self.connections[c.id] = obj
+    def find_child_touches(self):
+        for c in self.connections.itervalues():
+            if c.has_touch:
+                return c
+            if c.connection_point.has_touch:
+                return c.connection_point
+        return None
+    def on_node_pos_changed(self, **kwargs):
+        if self.dragging:
+            return
+        self.widget.update_geom()
+    def on_widget_pos_changed(self, *args):
+        if not self.dragging:
+            return
+        pos = self.widget.get_position()
+        self.node.x = pos[0]
+        self.node.y = pos[1]
     def on_widget_action(self, **kwargs):
         action = kwargs.get('action')
         action_type = kwargs.get('type')
         if action == 'drop' and action_type == 'can_drop':
             return False
+        elif action == 'drag':
+            if not self.dragging:
+                obj = self.find_child_touches()
+                if obj is not None:
+                    return
+            if action_type == 'begin':
+                self.drag_start_pos = kwargs.get('abs_pos')
+                self.has_touch = True
+                self.dragging = True
+                return True
+            elif action_type == 'motion':
+                
+                return True
+            elif action_type == 'end':
+                self.has_touch = False
+                self.dragging = False
         
 class Connection(BaseObject):
     _Properties = dict(
@@ -78,6 +114,8 @@ class Connection(BaseObject):
         action_type = kwargs.get('type')
         btn = kwargs.get('btn')
         actor = kwargs.get('actor')
+        if self.parent.has_touch:
+            return
         if action == 'drop':
             drop_actor = kwargs.get('drop_actor')
             drag_actor = kwargs.get('drag_actor')
@@ -121,6 +159,8 @@ class ConnectionPoint(BaseObject):
         action = kwargs.get('action')
         action_type = kwargs.get('type')
         actor = kwargs.get('actor')
+        if self.ui_connection.parent.has_touch:
+            return
         if not isinstance(actor, ConnectionPointActor):
             return
         if action == 'drag':

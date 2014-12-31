@@ -146,12 +146,14 @@ class Dragable(Dropable):
         if self.current_drag_actor is not self:
             return False
         x, y = action.get_motion_coords()
-        self.trigger_action(action='drag', 
-                            type='motion', 
-                            abs_pos=(x, y), 
-                            delta_pos=(delta_x, delta_y), 
-                            actor=self)
-        return False
+        r = self.trigger_action(action='drag', 
+                                type='motion', 
+                                abs_pos=(x, y), 
+                                delta_pos=(delta_x, delta_y), 
+                                actor=self)
+        if not isinstance(r, bool):
+            r = False
+        return r
     def _on_drag_end(self, action, actor, x, y, modifiers):
         self.trigger_action(action='drag', 
                             type='end', 

@@ -223,6 +223,7 @@
     <Source>node_mapper/clutterui/line_drawing.py</Source>
     <Source>node_mapper/clutterui/actions.py</Source>
     <Source>node_mapper/nomadic_recording_lib/misc_scripts/rm_ssh_host.py</Source>
+    <Source>node_mapper/clutterui/grid.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

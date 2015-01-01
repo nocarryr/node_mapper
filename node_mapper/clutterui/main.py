@@ -5,6 +5,7 @@ from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
+from node_mapper.clutterui.grid import GridController
 from node_mapper.clutterui.line_drawing import LineContainer
 from node_mapper.clutterui.node import Node
 from node_mapper.clutterui.free_node import NodeContainer, FreeNode, Connector
@@ -44,6 +45,7 @@ class MainWindow(gtkBaseUI.BaseWindow):
     def test_free_node(self):
         layout = Clutter.BinLayout()
         self.stage.set_layout_manager(layout)
+        self.grid_controller = GridController(stage=self.stage)
         self.line_container = LineContainer()
         self.node_container = NodeContainer()
         self.stage.add_child(self.line_container)

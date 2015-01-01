@@ -271,14 +271,20 @@ class ConnectionPointActor(Clutter.Actor, actions.Dragable):
         self._highlighted = value
         self.canvas.invalidate()
     def on_canvas_draw(self, canvas, cr, width, height):
-        cr.move_to(width/2., 0)
+        #cr.move_to(width/2., 0)
         if self.highlighted:
             cr.set_source_rgb(1, 1, 1)
         else:
             cr.set_source_rgb(.7, .7, .7)
+        if self.get_x_align() == Clutter.ActorAlign.START:
+            x = 0
+        else:
+            x = width
         r = min([width, height]) / 2.
-        cr.arc(width/2., height/2., r, 0, 2* math.pi)
-        cr.fill()
+        cr.arc(x, height/2., r, 0, 2 * math.pi)
+        cr.fill_preserve()
+        cr.set_source_rgb(.2, .2, .2)
+        cr.stroke()
     def trigger_action(self, **kwargs):
         return self.connection_point.on_widget_action(**kwargs)
     def __str__(self):

@@ -12,6 +12,7 @@ class LineContainer(Clutter.Actor):
         self.set_y_align(Clutter.ActorAlign.FILL)
         self.set_x_expand(True)
         self.set_y_expand(True)
+        self.set_background_color(Clutter.Color(0, 0, 0, 0))
         layout = Clutter.BinLayout()
         self.set_layout_manager(layout)
         

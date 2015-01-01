@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project Node Mapper -->
-<!-- Copyright (C) 2014 ,  -->
+<!-- Copyright (C) 2015 ,  -->
 <Project version="5.1">
   <Language></Language>
   <Hash>0a14eb412cbfb6d8c2b7cee05a02adfd4d9d3457</Hash>
@@ -224,6 +224,7 @@
     <Source>node_mapper/clutterui/actions.py</Source>
     <Source>node_mapper/nomadic_recording_lib/misc_scripts/rm_ssh_host.py</Source>
     <Source>node_mapper/clutterui/grid.py</Source>
+    <Source>node_mapper/clutterui/menu.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

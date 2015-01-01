@@ -15,6 +15,7 @@ class LineContainer(Clutter.Actor):
         self.set_background_color(Clutter.Color(0, 0, 0, 0))
         layout = Clutter.BinLayout()
         self.set_layout_manager(layout)
+        self.set_property('name', 'line_container')
         
 class Line(BaseObject):
     _Properties = dict(
@@ -45,6 +46,9 @@ class Line(BaseObject):
         for attr in ['start_x', 'start_y', 'end_x', 'end_y']:
             if attr in kwargs:
                 setattr(self, attr, kwargs.get(attr))
+    def unlink(self):
+        self.parent_widget.remove_child(self.widget)
+        super(Line, self).unlink()
     def on_start_xy_changed(self, **kwargs):
         if 'start_pos' in self._props_updating:
             return

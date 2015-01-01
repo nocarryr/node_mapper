@@ -151,10 +151,24 @@ class ConnectionPoint(BaseObject):
     )
     signals_to_register = ['drop', 'drag_motion']
     def __init__(self, **kwargs):
+        self._unbound_connector = None
         super(ConnectionPoint, self).__init__(**kwargs)
         self.ui_connection = kwargs.get('ui_connection')
         self.connection = self.ui_connection.connection
         self.widget = ConnectionPointActor(connection_point=self)
+    def find_line_container(self):
+        stage = self.widget.get_stage()
+        if hasattr(stage, '_line_container'):
+            return stage._line_container
+        for widget in stage.get_children():
+            if widget.get_property('name') != 'line_container':
+                continue
+            stage._line_container = widget
+            return widget
+    def build_unbound_connector(self, **kwargs):
+        kwargs['connection_point'] = self
+        kwargs['container'] = self.find_line_container()
+        self._unbound_connector = UnBoundConnector(**kwargs)
     def on_widget_action(self, **kwargs):
         action = kwargs.get('action')
         action_type = kwargs.get('type')
@@ -164,16 +178,27 @@ class ConnectionPoint(BaseObject):
         if not isinstance(actor, ConnectionPointActor):
             return
         if action == 'drag':
+            ub_c = self._unbound_connector
             if action_type == 'begin':
                 self.dragging = True
                 self.has_touch = True
                 self.widget.highlighted = True
                 return True
             elif action_type == 'motion':
+                abs_pos = kwargs.get('abs_pos')
+                if ub_c is None:
+                    ckwargs = dict(zip(['mouse_x', 'mouse_y'], abs_pos))
+                    self.build_unbound_connector(**ckwargs)
+                else:
+                    ub_c.mouse_x = abs_pos[0]
+                    ub_c.mouse_y = abs_pos[1]
                 kwargs['connection_point'] = self
                 kwargs['connection'] = self.connection
                 self.emit('drag_motion', **kwargs)
             elif action_type == 'end':
+                if ub_c is not None:
+                    ub_c.unlink()
+                    self._unbound_connector = None
                 self.dragging = False
                 self.has_touch = False
                 self.widget.highlighted = False
@@ -271,7 +296,6 @@ class ConnectionPointActor(Clutter.Actor, actions.Dragable):
         self._highlighted = value
         self.canvas.invalidate()
     def on_canvas_draw(self, canvas, cr, width, height):
-        #cr.move_to(width/2., 0)
         if self.highlighted:
             cr.set_source_rgb(1, 1, 1)
         else:
@@ -280,7 +304,7 @@ class ConnectionPointActor(Clutter.Actor, actions.Dragable):
             x = 0
         else:
             x = width
-        r = min([width, height]) / 2.
+        r = min([width, height]) / 1.5
         cr.arc(x, height/2., r, 0, 2 * math.pi)
         cr.fill_preserve()
         cr.set_source_rgb(.2, .2, .2)
@@ -323,3 +347,36 @@ class Connector(BaseObject):
         d = self.build_line_coords(connection_type)
         for key, val in d.iteritems():
             setattr(self.line, key, val)
+            
+class UnBoundConnector(BaseObject):
+    _Properties = dict(
+        mouse_x = {'ignore_type':True}, 
+        mouse_y = {'ignore_type':True}, 
+    )
+    signals_to_register = ['connected']
+    def __init__(self, **kwargs):
+        super(UnBoundConnector, self).__init__(**kwargs)
+        self.mouse_x = kwargs.get('mouse_x')
+        self.mouse_y = kwargs.get('mouse_y')
+        self.connection_point = kwargs.get('connection_point')
+        self.ui_connection = self.connection_point.ui_connection
+        self.connection = self.ui_connection.connection
+        self.container = kwargs.get('container')
+        self.line = Line(parent_widget=self.container, 
+                         start_pos={'x':self.connection.x, 'y':self.connection.y}, 
+                         end_pos={'x':self.mouse_x, 'y':self.mouse_y})
+        self.bind(mouse_x=self.on_mouse_pos, 
+                  mouse_y=self.on_mouse_pos)
+    def unlink(self):
+        self.line.unlink()
+        super(UnBoundConnector, self).unlink()
+    def on_mouse_pos(self, **kwargs):
+        prop = kwargs.get('Property')
+        value = kwargs.get('value')
+        key = prop.name.split('_')[1]
+        self.line.end_pos[key] = value
+    def on_cancelled(self, **kwargs):
+        self.unlink()
+    def on_connected(self, **kwargs):
+        self.unlink()
+        

@@ -4,9 +4,10 @@ Clutter = clutter_bases.clutter
 
 class GridController(BaseObject):
     _Properties = dict(
-        min_size = {'default':4}, 
-        num_subdivisions = {'default':8}, 
-        total_size = {'default':{'x':640, 'y':480}}, 
+        min_size = {'default':32}, 
+        num_subdivisions = {'default':2}, 
+        width = {'default':640}, 
+        height = {'default':480}, 
     )
     _ChildGroups = dict(
         h_lines = {}, 
@@ -16,7 +17,7 @@ class GridController(BaseObject):
     def __init__(self, **kwargs):
         self._stage = None
         super(GridController, self).__init__(**kwargs)
-        for key in ['min_size', 'num_subdivisions', 'total_size']:
+        for key in ['min_size', 'num_subdivisions', 'width', 'height']:
             if key in kwargs:
                 setattr(self, key, kwargs.get(key))
         self.background_color = Color(hue=0., sat=0., val=0.)
@@ -35,7 +36,8 @@ class GridController(BaseObject):
         self._stage = value
         if value is not None:
             size = value.get_size()
-            self.total_size.update(dict(zip(['x', 'y'], size)))
+            self.width = size[0]
+            self.height = size[1]
             value.add_child(self.widget)
             value.connect('notify::size', self.on_stage_size)
     def build_lines(self):
@@ -45,7 +47,7 @@ class GridController(BaseObject):
             i = 0
             sub_count = self.num_subdivisions
             count_down = True
-            max_i = max(self.total_size.values())
+            max_i = max([self.width, self.height])
             while i <= max_i:
                 yield i, sub_count
                 i += self.min_size
@@ -62,24 +64,24 @@ class GridController(BaseObject):
                     if sub_count == self.num_subdivisions:
                         count_down = True
         for i, size in iter_grid():
-            if i <= self.total_size['x']:
+            if i <= self.width:
                 self.v_lines.add_child(GridLine, 
                                        controller=self, 
                                        position=i, 
                                        width=size)
-            if i <= self.total_size['y']:
+            if i <= self.height:
                 self.h_lines.add_child(GridLine, 
                                        controller=self, 
                                        position=i, 
                                        width=size)
         self.emit('lines_built')
     def on_stage_size(self, *args):
-        size = dict(zip(['x', 'y'], self.stage.get_size()))
-        self.total_size.update(size)
+        size = self.stage.get_size()
+        self.width = size[0]
+        self.height = size[1]
     def on_own_property_changed(self, **kwargs):
         prop = kwargs.get('Property')
-        print prop.name, prop.value
-        if prop.name in ['min_size', 'num_subdivisions', 'total_size']:
+        if prop.name in ['min_size', 'num_subdivisions', 'width', 'height']:
             self.build_lines()
         
 class GridLine(BaseObject):
@@ -93,6 +95,10 @@ class GridLine(BaseObject):
         self.position = kwargs.get('position')
         self.id = self.position
         self.width = kwargs.get('width')
+    def __repr__(self):
+        return '<GridLine: %s>' % (self)
+    def __str__(self):
+        return 'position=%s, width=%s' % (self.position, self.width)
 
 def build_color_args(color, alpha):
     l = [getattr(color, k) for k in ['red', 'green', 'blue']]
@@ -102,33 +108,45 @@ def build_color_args(color, alpha):
 class GridCanvas(Clutter.Actor):
     def __init__(self, **kwargs):
         super(GridCanvas, self).__init__()
+        self.set_background_color(Clutter.Color(0, 0, 255, 255))
         self.controller = kwargs.get('controller')
-        size = [self.controller.total_size[key] for key in ['x', 'y']]
+        size = [self.controller.width, self.controller.height]
         self.set_size(*size)
         self.canvas = Clutter.Canvas.new()
+        self.set_content(self.canvas)
         self.canvas.connect('draw', self.on_canvas_draw)
         self.canvas.set_size(*size)
+        #self.connect('notify::size', self.on_own_size_changed)
         self.controller.bind(lines_built=self.queue_grid_draw, 
-                             total_size=self.on_total_size)
+                             width=self.on_controller_size, 
+                             height=self.on_controller_size)
+    def on_own_size_changed(self, *args):
+        pass
     def queue_grid_draw(self, *args, **kwargs):
         self.canvas.invalidate()
-    def on_total_size(self, **kwargs):
-        value = kwargs.get('value')
-        size = [value[key] for key in ['x', 'y']]
+    def on_controller_size(self, **kwargs):
+        size = [self.controller.width, self.controller.height]
         self.set_size(*size)
         self.canvas.set_size(*size)
     def on_canvas_draw(self, canvas, cr, width, height):
-        print 'grid draw: ', width, height
-        alpha_scale = 1. / self.controller.num_subdivisions
-        base_color = self.controller.line_color
-        for h_line in self.controller.h_lines.itervalues():
-            cr.move_to(h_line.position, 0)
-            cargs = build_color_args(base_color, h_line.width*alpha_scale)
+        c = self.controller
+        cr.save()
+        cr.set_source_rgba(0., 0., 0., 0.)
+        cr.set_operator(0)
+        cr.paint()
+        cr.restore()
+        def calc_alpha(line):
+            return (.5 / c.num_subdivisions * line.width) + .5
+        base_color = c.line_color
+        for h_line in c.h_lines.itervalues():
+            cr.move_to(0, h_line.position)
+            cargs = build_color_args(base_color, calc_alpha(h_line))
             cr.set_source_rgba(*cargs)
-            cr.line_to(h_line.position, height)
-        for v_line in self.controller.v_lines.itervalues():
-            cr.move_to(0, v_line.position)
-            cargs = build_color_args(base_color, v_line.width*alpha_scale)
+            cr.line_to(width, h_line.position)
+            cr.stroke()
+        for v_line in c.v_lines.itervalues():
+            cr.move_to(v_line.position, 0)
+            cargs = build_color_args(base_color, calc_alpha(v_line))
             cr.set_source_rgba(*cargs)
-            cr.line_to(width, v_line.position)
-        cr.stroke()
+            cr.line_to(v_line.position, height)
+            cr.stroke()

@@ -7,7 +7,7 @@ from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
 Clutter = clutter_bases.clutter
 
-from node_mapper.clutterui.menu import MenuItem, MenuAction
+from node_mapper.clutterui.menu import MenuBar, ContextMenus
 from node_mapper.clutterui.grid import GridController
 from node_mapper.clutterui.line_drawing import LineContainer
 from node_mapper.clutterui.node import Node
@@ -31,6 +31,7 @@ class MainWindow(gtkBaseUI.BaseWindow):
         vbox = self.vbox = widgets.VBox()
         self.menu_bar = MenuBar()
         self.menu_bar.bind(activate=self.on_menuitem_activate)
+        self.context_menus = ContextMenus()
         vbox.pack_start(self.menu_bar.widget)
         self.scene = clutter_bases.Scene()
         self.stage = self.scene.embed.get_stage()
@@ -38,6 +39,9 @@ class MainWindow(gtkBaseUI.BaseWindow):
         self.stage.set_background_color(Clutter.Color(1, 1, 1, 255))
         self.mouse_pos = {'stage':[0, 0], 'connector':[0, 0]}
         #self.stage.connect('motion-event', self.on_stage_motion)
+        a = Clutter.ClickAction.new()
+        self.stage.add_action(a)
+        a.connect('clicked', self.on_stage_click)
         vbox.pack_start(self.scene.embed)
         self.window.add(vbox)
         self.test_free_node()
@@ -87,6 +91,11 @@ class MainWindow(gtkBaseUI.BaseWindow):
         d[0] = e.x
         d[1] = e.y
         self.update_debug()
+    def on_stage_click(self, action, actor):
+        btn = action.get_button()
+        if btn == 1:
+            return
+        self.context_menus.trigger_menu(id='window', btn=btn)
     def on_connector_motion(self, c, e):
         d = self.mouse_pos['connector']
         d[0] = e.x
@@ -101,53 +110,7 @@ class MainWindow(gtkBaseUI.BaseWindow):
     def on_menuitem_activate(self, **kwargs):
         pass
         
-MENU_DATA = [
-    {
-        'label':'File', 
-        'child_items':[
-            'New', 
-            'Open', 
-            'Save', 
-            'SEPARATOR', 
-            'Exit', 
-        ], 
-    }, {
-        'label':'Edit', 
-        'child_items':[
-            'Undo', 
-            'Redo', 
-        ], 
-    }, 
-]
 
-class FileOpen(MenuAction):
-    def __init__(self, **kwargs):
-        super(FileOpen, self).__init__(**kwargs)
-        self.add_search('File>>Open')
-    def handle_item(self, **kwargs):
-        print 'FileOpen'
-class AnyOpen(MenuAction):
-    def __init__(self, **kwargs):
-        super(AnyOpen, self).__init__(**kwargs)
-        self.add_search('Open>>*')
-    def handle_item(self, **kwargs):
-        print 'AnyOpen'
-class MenuBar(BaseObject):
-    signals_to_register = ['activate']
-    def __init__(self, **kwargs):
-        super(MenuBar, self).__init__(**kwargs)
-        self.widget = gtk.MenuBar()
-        self.menu_actions = []
-        self.menu_items = []
-        for d in MENU_DATA:
-            item = MenuItem(**d)
-            self.menu_items.append(item)
-            item.bind(activate=self.on_menuitem_activate)
-            self.widget.append(item.widget)
-        self.menu_actions.append(FileOpen(menu_items=self.menu_items))
-        self.menu_actions.append(AnyOpen(menu_items=self.menu_items))
-    def on_menuitem_activate(self, **kwargs):
-        self.emit('activate', **kwargs)
     
 def main():
     app = Application()

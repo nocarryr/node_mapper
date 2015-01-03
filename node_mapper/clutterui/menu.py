@@ -1,4 +1,4 @@
-from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk
+from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk, cluttergtk
 from nomadic_recording_lib.Bases import BaseObject
 from nomadic_recording_lib.Bases.misc import setID, iterbases
     
@@ -16,6 +16,7 @@ class MenuItem(BaseObject):
     signals_to_register = ['activate']
     def __init__(self, **kwargs):
         super(MenuItem, self).__init__(**kwargs)
+        self.event_kwargs = {}
         self.label = kwargs.get('label')
         self.id = kwargs.get('id', self.label)
         self.enabled = kwargs.get('enabled', True)
@@ -25,6 +26,7 @@ class MenuItem(BaseObject):
             if delim != self.path_delimiter:
                 self.path_delimiter = delim
         self.is_separator = kwargs.get('is_separator', False)
+        self.toplevel_widget_cls = kwargs.get('toplevel_widget_cls', gtk.MenuItem)
         self.widget = self.build_widget()
         self.child_items.bind(child_update=self.on_child_items_ChildGroup_update)
         for child in kwargs.get('child_items', []):
@@ -62,13 +64,33 @@ class MenuItem(BaseObject):
     def build_widget(self):
         if self.is_separator:
             return gtk.SeparatorMenuItem()
-        w = gtk.MenuItem(label=self.label)
-        w.connect('activate', self.on_menuitem_activate)
+        cls = gtk.MenuItem
+        if self.parent is None:
+            cls = self.toplevel_widget_cls
+        if cls is not gtk.Menu:
+            w = cls(label=self.label)
+            w.connect('activate', self.on_menuitem_activate)
+        else:
+            w = cls()
         return w
+    def steal_child_items(self, widget):
+        for child in self.child_items.itervalues():
+            p = child.widget.get_parent()
+            if p is not None:
+                p.remove(child.widget)
+            widget.append(child.widget)
+    def return_child_items(self):
+        for child in self.child_items.itervalues():
+            p = child.widget.get_parent()
+            if p is not None:
+                p.remove(child.widget)
+            self.widget.append(child.widget)
     def get_submenu(self):
         w = self.widget
         if self.is_separator:
             return None
+        if self.parent is None and self.toplevel_widget_cls is gtk.Menu:
+            return self.widget
         return w.get_submenu()
     def add_child_item(self, **kwargs):
         if self.is_separator:
@@ -95,16 +117,22 @@ class MenuItem(BaseObject):
         w = self.widget
         if self.is_separator:
             return
+        if self.parent is None and self.toplevel_widget_cls is gtk.Menu:
+            return
         w.set_label(value)
     def on_enabled_set(self, **kwargs):
         pass
     def on_child_item_activate(self, **kwargs):
+        if len(self.event_kwargs):
+            kwargs.update(self.event_kwargs)
         self.emit('activate', **kwargs)
     def on_menuitem_activate(self, *args):
-        self.emit('activate', 
-                  obj=self, 
-                  menu_path=self.menu_path, 
-                  path_delimiter=self.path_delimiter)
+        kwargs = dict(obj=self, 
+                      menu_path=self.menu_path, 
+                      path_delimiter=self.path_delimiter)
+        if len(self.event_kwargs):
+            kwargs.update(self.event_kwargs)
+        self.emit('activate', **kwargs)
     
 class ActionKeyError(Exception):
     def __init__(self, obj, key):
@@ -135,10 +163,12 @@ class MenuAction(BaseObject):
         add_action_instance(self)
         self.search_paths = set()
         search_paths = set()
-        for cls in iterbases(MenuAction):
-            if hasattr(cls, 'search_paths'):
-                _search_paths = cls.search_paths
-                if not isinstance(_search_paths, set):
+        for cls in iterbases(self, MenuAction):
+            if hasattr(cls, '_search_paths'):
+                _search_paths = cls._search_paths
+                if isinstance(_search_paths, basestring):
+                    _search_paths = set([_search_paths])
+                elif not isinstance(_search_paths, set):
                     _search_paths = set(_search_paths)
                 search_paths |= _search_paths
         search_paths |= set(kwargs.get('search_paths', []))
@@ -326,13 +356,13 @@ CONTEXT_MENU_DATA = {
 class FileAction(MenuAction):
     pass
 class FileOpen(FileAction):
-    search_paths = 'File>>Open'
+    _search_paths = 'File>>Open'
 class FileSave(FileAction):
-    search_paths = 'File>>Save'
+    _search_paths = 'File>>Save'
 class FileNew(FileAction):
-    search_paths = 'File>>New'
+    _search_paths = 'File>>New'
 class ExitAction(MenuAction):
-    search_paths = 'File>>Exit'
+    _search_paths = 'File>>Exit'
     
 MAIN_ACTION_CLASSES = [FileOpen, FileSave, FileNew, ExitAction]
 
@@ -373,25 +403,33 @@ class RenameAction(ContextAction):
         self.context_obj = None
 class NodeRenameAction(RenameAction):
     context_obj_attr = 'name'
-    search_paths = 'node>>Rename'
+    _search_paths = 'node>>Rename'
 class ConnectionRenameAction(RenameAction):
     context_obj_attr = 'label'
-    search_paths = 'connection>>Rename'
-class AddNodeAction(MenuAction):
-    search_paths = 'window>>Add Node'
+    _search_paths = 'connection>>Rename'
+class DeleteNodeAction(ContextAction):
+    _search_paths = 'node>>Delete'
     def handle_item(self, **kwargs):
-        pass
+        self.context_obj.node.unlink()
+        self.context_obj = None
+class AddNodeAction(MenuAction):
+    _search_paths = 'window>>Add Node'
+    def handle_item(self, **kwargs):
+        self.application.mainwindow.add_node(**kwargs)
 
-CONTEXT_ACTION_CLASSES = [NodeRenameAction, ConnectionRenameAction, AddNodeAction]
+CONTEXT_ACTION_CLASSES = [NodeRenameAction, ConnectionRenameAction, DeleteNodeAction, AddNodeAction]
     
 class ContextMenus(MenuShell):
     def __init__(self, **kwargs):
         self._widget = None
+        self._menu_widget = None
         self._active_menu = None
         super(ContextMenus, self).__init__(**kwargs)
+        self.stage = kwargs.get('stage')
         for key, menu in CONTEXT_MENU_DATA.iteritems():
             mkwargs = menu.copy()
             mkwargs['id'] = key
+            mkwargs['toplevel_widget_cls'] = gtk.Menu
             self.add_menu(**mkwargs)
         for cls in CONTEXT_ACTION_CLASSES:
             self.add_action(cls)
@@ -403,20 +441,20 @@ class ContextMenus(MenuShell):
         if self._active_menu == value:
             return
         if self._active_menu is not None:
-            self._widget.remove(self._active_menu.widget)
-            self._widget.popdown()
-            self._widget = None
+            self._menu_widget.popdown()
+            self._menu_widget = None
         self._active_menu = value
         if value is not None:
-            self._widget = gtk.Menu()
-            self._widget.append(value.widget)
+            self._menu_widget = value.widget
     def trigger_menu(self, **kwargs):
         menu_id = kwargs.get('id')
         btn = kwargs.get('btn')
-        data = kwargs.get('data', {})
-        timestamp = kwargs.get('timestamp')
-        if timestamp is None:
-            timestamp = gtk.get_current_event_time()
+        device = kwargs.get('device')
+        ts = kwargs.get('timestamp')
+        event_kwargs = kwargs.get('event_kwargs', {})
         self.active_menu = self.menus[menu_id]
-        self._widget.popup(None, None, None, data, btn, timestamp)
+        self.active_menu.event_kwargs = event_kwargs
+        mw = self._menu_widget
+        mw.popup_for_device(device, None, None, None, None, btn, ts)
+        mw.show_all()
         

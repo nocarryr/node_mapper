@@ -36,6 +36,20 @@ class FreeNode(BaseObject):
         self.node.bind(x=self.on_node_pos_changed, 
                        y=self.on_node_pos_changed)
         self.widget.connect('notify::position', self.on_widget_pos_changed)
+    @property
+    def application(self):
+        return self.GLOBAL_CONFIG['GUIApplication']
+    @property
+    def window(self):
+        return self.application.mainwindow
+    def unlink(self):
+        self.node.unbind(self)
+        for c in self.connections.itervalues():
+            c.unlink()
+        p = self.widget.get_parent()
+        if p is not None:
+            p.remove_child(self.widget)
+        super(FreeNode, self).unlink()
     def add_connection(self, c):
         obj = Connection(parent=self, connection=c)
         self.connections[c.id] = obj
@@ -61,6 +75,15 @@ class FreeNode(BaseObject):
         action_type = kwargs.get('type')
         if action == 'drop' and action_type == 'can_drop':
             return False
+        elif action == 'click':
+            btn = kwargs.get('btn')
+            if btn == 'right':
+                obj = self.find_child_touches()
+                if obj is not None:
+                    return
+                self.has_touch = True
+                self.application.menu_context_obj = self
+                self.window.trigger_context_menu(id='node')
         elif action == 'drag':
             if not self.dragging:
                 obj = self.find_child_touches()
@@ -95,6 +118,16 @@ class Connection(BaseObject):
         self.widget.add_child(self.connection_point.widget)
         self.widget.text_box.bind(text=self.on_text_widget_text_set, 
                                   enable_edit=self.on_text_widget_enable_edit_set)
+    def unlink(self):
+        self.connection_point.unbind(self)
+        self.connection_point.unlink()
+        self.widget.text_box.unbind(self)
+        self.widget.text_box.unlink()
+        p = self.widget.get_parent()
+        if p is not None:
+            p.remove_child(self.widget)
+        self.connection.unbind(self)
+        super(Connection, self).unlink()
     def on_text_widget_text_set(self, **kwargs):
         if not kwargs.get('obj').enable_edit:
             return
@@ -156,6 +189,11 @@ class ConnectionPoint(BaseObject):
         self.ui_connection = kwargs.get('ui_connection')
         self.connection = self.ui_connection.connection
         self.widget = ConnectionPointActor(connection_point=self)
+    def unlink(self):
+        p = self.widget.get_parent()
+        if p is not None:
+            p.remove_child(self.widget)
+        super(ConnectionPoint, self).unlink()
     def find_line_container(self):
         stage = self.widget.get_stage()
         if hasattr(stage, '_line_container'):

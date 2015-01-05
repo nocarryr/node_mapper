@@ -157,7 +157,7 @@ class OutputNodeConnection(BaseNodeConnection):
 class FreeNode(NodePositionBase):
     _Properties = dict(
         padding_top={'default':20.}, 
-        padding_bottom={'default':0.}, 
+        padding_bottom={'default':20.}, 
     )
     _ChildGroups = dict(
         input_connections={'child_class':InputNodeConnection}, 
@@ -231,7 +231,7 @@ class FreeNode(NodePositionBase):
                 y_size = connection.relative_y + connection.height
                 if y_size > y_size_max:
                     y_size_max = y_size
-        if y_size_max > self.height + self.padding_bottom:
+        if y_size_max + self.padding_bottom > self.height:
             self.height = y_size_max + self.padding_bottom
     def on_connections_ChildGroup_update(self, **kwargs):
         mode = kwargs.get('mode')

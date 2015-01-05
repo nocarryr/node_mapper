@@ -288,10 +288,20 @@ class FreeNodeActor(Clutter.Actor, actions.Dragable):
         self.ui_node = kwargs.get('ui_node')
         self.node = self.ui_node.node
         self.set_background_color(color_to_clutter(self.node.colors['normal'].background))
+        self.text_container = Clutter.Actor.new()
+        self.text_container.set_size(self.node.width, self.node.padding_top)
+        layout = Clutter.BoxLayout()
+        self.text_container.set_layout_manager(layout)
+        self.text_box = TextBox(text=self.node.name, 
+                                color=self.node.colors['normal'].text, 
+                                x_align='center')
+        self.text_container.add_child(self.text_box.widget)
+        self.add_child(self.text_container)
     def update_geom(self):
         n = self.node
         self.set_position(n.x, n.y)
         self.set_size(n.width, n.height)
+        self.text_container.set_size(n.width, n.padding_top)
     def trigger_action(self, **kwargs):
         return self.ui_node.on_widget_action(**kwargs)
     def __str__(self):

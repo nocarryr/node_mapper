@@ -22,6 +22,7 @@ class FreeNode(BaseObject):
         has_touch={'default':False}, 
         dragging={'default':False}, 
     )
+    signals_to_register = ['connection_added']
     def __init__(self, **kwargs):
         super(FreeNode, self).__init__(**kwargs)
         n = self.node = kwargs.get('node')
@@ -35,6 +36,8 @@ class FreeNode(BaseObject):
                 self.add_connection(c)
         self.node.bind(x=self.on_node_pos_changed, 
                        y=self.on_node_pos_changed)
+        self.node.input_connections.bind(child_update=self.on_node_connections_ChildGroup_update)
+        self.node.output_connections.bind(child_update=self.on_node_connections_ChildGroup_update)
         self.widget.connect('notify::position', self.on_widget_pos_changed)
     @property
     def application(self):
@@ -44,6 +47,8 @@ class FreeNode(BaseObject):
         return self.application.mainwindow
     def unlink(self):
         self.node.unbind(self)
+        self.node.input_connections.unbind(self)
+        self.node.output_connections.unbind(self)
         for c in self.connections.itervalues():
             c.unlink()
         p = self.widget.get_parent()
@@ -53,6 +58,7 @@ class FreeNode(BaseObject):
     def add_connection(self, c):
         obj = Connection(parent=self, connection=c)
         self.connections[c.id] = obj
+        self.emit('connection_added', node=self, connection=obj)
     def find_child_touches(self):
         for c in self.connections.itervalues():
             if c.has_touch:
@@ -64,6 +70,15 @@ class FreeNode(BaseObject):
         if self.dragging:
             return
         self.widget.update_geom()
+    def on_node_connections_ChildGroup_update(self, **kwargs):
+        mode = kwargs.get('mode')
+        obj = kwargs.get('obj')
+        if mode == 'add':
+            c = self.add_connection(obj)
+        elif mode == 'remove':
+            c = self.connections[obj.id]
+            c.unlink()
+            del self.connections[obj.id]
     def on_widget_pos_changed(self, *args):
         if not self.dragging:
             return

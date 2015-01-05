@@ -330,6 +330,8 @@ CONTEXT_MENU_DATA = {
         'child_items':[
             'Rename', 
             'Delete', 
+            'Add Input', 
+            'Add Output', 
         ], 
     }, 
     'connection':{
@@ -399,14 +401,52 @@ class RenameAction(ContextAction):
     def handle_item(self, **kwargs):
         pass
     def finish_handle_item(self, value):
-        setattr(self.context_obj, self.context_obj_attr, value)
+        obj = self.context_obj
+        attr = self.context_obj_attr
+        if '.' in attr:
+            while '.' in attr:
+                obj_attr = attr.split('.')[0]
+                attr = '.'.join(attr.split('.')[1:])
+                obj = getattr(obj, obj_attr)
+        setattr(obj, attr, value)
         self.context_obj = None
 class NodeRenameAction(RenameAction):
     context_obj_attr = 'name'
     _search_paths = 'node>>Rename'
 class ConnectionRenameAction(RenameAction):
-    context_obj_attr = 'label'
+    context_obj_attr = '.connection.label'
     _search_paths = 'connection>>Rename'
+    def handle_item(self, **kwargs):
+        c = self.context_obj
+        c.widget.text_box.bind(enable_edit=self.on_text_box_enable_edit_set)
+        c.widget.text_box.enable_edit = True
+    def on_text_box_enable_edit_set(self, **kwargs):
+        if kwargs.get('value'):
+            return
+        obj = kwargs.get('obj')
+        obj.unbind(self)
+        self.context_obj = None
+class NodeAddConnectionAction(ContextAction):
+    def handle_item(self, **kwargs):
+        ui_node = self.context_obj
+        node = ui_node.node
+        ui_node.bind(connection_added=self.on_ui_node_connection_added)
+        node.add_connection(type=self.connection_type)
+    def on_ui_node_connection_added(self, **kwargs):
+        ui_node = kwargs.get('node')
+        c = kwargs.get('connection')
+        ui_node.unbind(self)
+        self.context_obj = None
+        ## TODO: re-enable once rename actions work
+        #self.context_obj = c
+        #next_action = ALL_ACTIONS['ConnectionRenameAction']
+        #next_action.handle_item()
+class NodeAddInputAction(NodeAddConnectionAction):
+    _search_paths = 'node>>Add Input'
+    connection_type = 'input'
+class NodeAddOutputAction(NodeAddConnectionAction):
+    _search_paths = 'node>>Add Output'
+    connection_type = 'output'
 class DeleteNodeAction(ContextAction):
     _search_paths = 'node>>Delete'
     def handle_item(self, **kwargs):
@@ -417,7 +457,14 @@ class AddNodeAction(MenuAction):
     def handle_item(self, **kwargs):
         self.application.mainwindow.add_node(**kwargs)
 
-CONTEXT_ACTION_CLASSES = [NodeRenameAction, ConnectionRenameAction, DeleteNodeAction, AddNodeAction]
+CONTEXT_ACTION_CLASSES = [
+    NodeRenameAction, 
+    ConnectionRenameAction, 
+    NodeAddInputAction, 
+    NodeAddOutputAction, 
+    DeleteNodeAction, 
+    AddNodeAction, 
+]
     
 class ContextMenus(MenuShell):
     def __init__(self, **kwargs):

@@ -35,7 +35,9 @@ class FreeNode(BaseObject):
             for c in cg.itervalues():
                 self.add_connection(c)
         self.node.bind(x=self.on_node_pos_changed, 
-                       y=self.on_node_pos_changed)
+                       y=self.on_node_pos_changed, 
+                       width=self.on_node_size_changed, 
+                       height=self.on_node_size_changed)
         self.node.input_connections.bind(child_update=self.on_node_connections_ChildGroup_update)
         self.node.output_connections.bind(child_update=self.on_node_connections_ChildGroup_update)
         self.widget.connect('notify::position', self.on_widget_pos_changed)
@@ -69,6 +71,8 @@ class FreeNode(BaseObject):
     def on_node_pos_changed(self, **kwargs):
         if self.dragging:
             return
+        self.widget.update_geom()
+    def on_node_size_changed(self, **kwargs):
         self.widget.update_geom()
     def on_node_connections_ChildGroup_update(self, **kwargs):
         mode = kwargs.get('mode')

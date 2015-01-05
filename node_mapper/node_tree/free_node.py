@@ -70,7 +70,7 @@ class BaseNodeConnection(BaseObject):
         cg = self.ChildGroup_parent
         p = self.parent
         self.width = p.width / 2.
-        y = 0.
+        y = p.padding_top
         for c in cg.itervalues():
             if c is self:
                 break
@@ -155,6 +155,10 @@ class OutputNodeConnection(BaseNodeConnection):
         super(OutputNodeConnection, self).on_parent_position_changed(**kwargs)
     
 class FreeNode(NodePositionBase):
+    _Properties = dict(
+        padding_top={'default':20.}, 
+        padding_bottom={'default':0.}, 
+    )
     _ChildGroups = dict(
         input_connections={'child_class':InputNodeConnection}, 
         output_connections={'child_class':OutputNodeConnection}, 
@@ -171,6 +175,8 @@ class FreeNode(NodePositionBase):
                     setattr(self, attr, kwargs.get(attr))
         for cg in [self.input_connections, self.output_connections]:
             cg.bind(child_update=self.on_connections_ChildGroup_update)
+        self.bind(padding_top=self.on_padding_changed, 
+                  padding_bottom=self.on_padding_changed)
         self.bind(position_changed=self.on_own_position_changed)
     def unlink(self):
         self._unlinking = True
@@ -215,12 +221,18 @@ class FreeNode(NodePositionBase):
             connection_types = ['input', 'output']
         elif isinstance(connection_types, basestring):
             connection_types = [connection_types]
+        y_size_max = 0.
         for connection_type in connection_types:
             cg = getattr(self, '_'.join([connection_type, 'connections']))
             for connection in cg.itervalues():
-                connection.relative_y = 0.
+                connection.relative_y = self.padding_top
             for connection in cg.itervalues():
                 connection.calc_geom()
+                y_size = connection.relative_y + connection.height
+                if y_size > y_size_max:
+                    y_size_max = y_size
+        if y_size_max > self.height + self.padding_bottom:
+            self.height = y_size_max + self.padding_bottom
     def on_connections_ChildGroup_update(self, **kwargs):
         mode = kwargs.get('mode')
         c = kwargs.get('obj')
@@ -232,6 +244,8 @@ class FreeNode(NodePositionBase):
             c.unbind(self.on_connector_added)
     def on_connector_added(self, **kwargs):
         self.emit('connector_added', **kwargs)
+    def on_padding_changed(self, **kwargs):
+        self.update_connection_geom()
     def on_own_position_changed(self, **kwargs):
         pos_type = kwargs.get('type')
         if pos_type in ['invert', 'size']:

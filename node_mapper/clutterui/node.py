@@ -86,6 +86,7 @@ class TextBox(BaseObject):
         tw.set_selectable(value)
         tw.set_editable(value)
         if value:
+            self.GLOBAL_CONFIG['GUIApplication'].mainwindow.scene.embed.grab_focus()
             tw.grab_key_focus()
     def on_text_widget_activate(self, *args):
         if self.enable_edit:

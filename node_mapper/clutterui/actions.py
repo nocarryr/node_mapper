@@ -129,12 +129,15 @@ class Dropable(Clickable):
                             actor=self)
 class Dragable(Dropable):
     def init_actions(self, **kwargs):
+        super(Dragable, self).init_actions(**kwargs)
         a = Clutter.DragAction.new()
+        a.set_property('x-drag-threshold', 4)
+        a.set_property('y-drag-threshold', 4)
         self.add_action_with_name('drag', a)
         a.connect('drag-begin', self._on_drag_begin)
         a.connect('drag-progress', self._on_drag_motion)
         a.connect('drag-end', self._on_drag_end)
-        super(Dragable, self).init_actions(**kwargs)
+        
     def _on_drag_begin(self, action, actor, x, y, modifiers):
         r = self.trigger_action(action='drag', 
                                 type='begin', 
@@ -143,6 +146,7 @@ class Dragable(Dropable):
         if r:
             self.current_drag_actor = self
     def _on_drag_motion(self, action, actor, delta_x, delta_y):
+        self.get_action('click').release()
         if self.current_drag_actor is not self:
             return False
         x, y = action.get_motion_coords()

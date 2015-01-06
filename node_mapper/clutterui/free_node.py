@@ -96,13 +96,24 @@ class FreeNode(BaseObject):
             return False
         elif action == 'click':
             btn = kwargs.get('btn')
-            if btn == 'right':
-                obj = self.find_child_touches()
-                if obj is not None:
+            if action_type == 'long_press':
+                state = kwargs.get('state')
+                if state == 'query':
+                    return btn == 'left'
+                else:
                     return
-                self.has_touch = True
-                self.application.menu_context_obj = self
-                self.window.trigger_context_menu(id='node')
+                #elif state == 'activate':
+                #    self.widget.text_box.enable_edit = True
+                #elif state == 'cancel':
+                #    self.widget.text_box.enable_edit = False
+            elif action_type == 'click':
+                if btn == 'right':
+                    obj = self.find_child_touches()
+                    if obj is not None:
+                        return
+                    self.has_touch = True
+                    self.application.menu_context_obj = self
+                    self.window.trigger_context_menu(id='node')
         elif action == 'drag':
             if not self.dragging:
                 obj = self.find_child_touches()
@@ -289,6 +300,8 @@ class FreeNodeActor(Clutter.Actor, actions.Dragable):
         self.node = self.ui_node.node
         self.set_background_color(color_to_clutter(self.node.colors['normal'].background))
         self.text_container = Clutter.Actor.new()
+        self.text_container.set_reactive(True)
+        self.add_child(self.text_container)
         self.text_container.set_size(self.node.width, self.node.padding_top)
         layout = Clutter.BoxLayout()
         self.text_container.set_layout_manager(layout)
@@ -296,12 +309,23 @@ class FreeNodeActor(Clutter.Actor, actions.Dragable):
                                 color=self.node.colors['normal'].text, 
                                 x_align='center')
         self.text_container.add_child(self.text_box.widget)
-        self.add_child(self.text_container)
+        self.text_box.bind(text=self.on_text_box_text_set)
+        self.node.bind(name=self.on_node_name_set)
     def update_geom(self):
         n = self.node
         self.set_position(n.x, n.y)
         self.set_size(n.width, n.height)
         self.text_container.set_size(n.width, n.padding_top)
+    def on_node_name_set(self, **kwargs):
+        value = kwargs.get('value')
+        if self.text_box.text == value:
+            return
+        self.text_box.text = value
+    def on_text_box_text_set(self, **kwargs):
+        value = kwargs.get('value')
+        if self.node.name == value:
+            return
+        self.node.name = value
     def trigger_action(self, **kwargs):
         return self.ui_node.on_widget_action(**kwargs)
     def __str__(self):

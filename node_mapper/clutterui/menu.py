@@ -1,4 +1,4 @@
-from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk, cluttergtk
+from nomadic_recording_lib.ui.gtk.bases.ui_modules import gtk, clutter
 from nomadic_recording_lib.Bases import BaseObject
 from nomadic_recording_lib.Bases.misc import setID, iterbases
     
@@ -13,7 +13,7 @@ class MenuItem(BaseObject):
     _ChildGroups = dict(
         child_items={'child_class':'__self__'}, 
     )
-    signals_to_register = ['activate']
+    signals_to_register = ['activate', 'menushell_selection_done']
     def __init__(self, **kwargs):
         super(MenuItem, self).__init__(**kwargs)
         self.event_kwargs = {}
@@ -25,6 +25,8 @@ class MenuItem(BaseObject):
             delim = self.parent.path_delimiter
             if delim != self.path_delimiter:
                 self.path_delimiter = delim
+            if self.is_menushell:
+                self.root_item.bind(menushell_selection_done=self.on_menushell_parent_selection_done)
         self.is_separator = kwargs.get('is_separator', False)
         self.toplevel_widget_cls = kwargs.get('toplevel_widget_cls', gtk.MenuItem)
         self.widget = self.build_widget()
@@ -48,6 +50,16 @@ class MenuItem(BaseObject):
     @property
     def application(self):
         return self.GLOBAL_CONFIG['GUIApplication']
+    @property
+    def root_item(self):
+        if self.parent is None:
+            return self
+        return self.parent.root_item
+    @property
+    def is_menushell(self):
+        if self.parent is None:
+            return self.toplevel_widget_cls is gtk.Menu
+        return self.parent.is_menushell
     def get_by_path(self, p):
         if self.parent is None:
             return self._get_by_path(p)
@@ -72,6 +84,7 @@ class MenuItem(BaseObject):
             w.connect('activate', self.on_menuitem_activate)
         else:
             w = cls()
+            w.connect('selection-done', self.on_menu_selection_done)
         return w
     def steal_child_items(self, widget):
         for child in self.child_items.itervalues():
@@ -132,7 +145,17 @@ class MenuItem(BaseObject):
                       path_delimiter=self.path_delimiter)
         if len(self.event_kwargs):
             kwargs.update(self.event_kwargs)
-        self.emit('activate', **kwargs)
+        if self.is_menushell:
+            self._activate_kwargs = kwargs
+        else:
+            self.emit('activate', **kwargs)
+    def on_menushell_parent_selection_done(self, **kwargs):
+        akwargs = getattr(self, '_activate_kwargs', None)
+        if akwargs is not None:
+            self.emit('activate', **akwargs)
+            self._activate_kwargs = None
+    def on_menu_selection_done(self, *args):
+        self.emit('menushell_selection_done', obj=self)
     
 class ActionKeyError(Exception):
     def __init__(self, obj, key):
@@ -411,10 +434,20 @@ class RenameAction(ContextAction):
         setattr(obj, attr, value)
         self.context_obj = None
 class NodeRenameAction(RenameAction):
-    context_obj_attr = 'name'
+    context_obj_attr = 'node.name'
     _search_paths = 'node>>Rename'
+    def handle_item(self, **kwargs):
+        ui_node = self.context_obj
+        ui_node.widget.text_box.bind(enable_edit=self.on_text_box_enable_edit_set)
+        ui_node.widget.text_box.enable_edit = True
+    def on_text_box_enable_edit_set(self, **kwargs):
+        if kwargs.get('value'):
+            return
+        obj = kwargs.get('obj')
+        obj.unbind(self)
+        self.context_obj = None
 class ConnectionRenameAction(RenameAction):
-    context_obj_attr = '.connection.label'
+    context_obj_attr = 'connection.label'
     _search_paths = 'connection>>Rename'
     def handle_item(self, **kwargs):
         c = self.context_obj

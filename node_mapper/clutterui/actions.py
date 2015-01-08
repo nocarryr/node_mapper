@@ -1,3 +1,4 @@
+from nomadic_recording_lib.ui.gtk.bases.ui_modules import glib
 from nomadic_recording_lib.ui.gtk.bases import clutter_bases
 Clutter = clutter_bases.clutter
 
@@ -13,8 +14,31 @@ class Clickable(Actionable):
         self.add_action_with_name('click', a)
         a.connect('clicked', self._on_click_click)
         a.connect('long-press', self._on_click_long_press)
+        self.connect('button-release-event', self._on_click_button_release)
         super(Clickable, self).init_actions(**kwargs)
+    @property
+    def click_action_double_click_waiting(self):
+        return getattr(self, '_click_action_double_click_waiting', False)
+    @click_action_double_click_waiting.setter
+    def click_action_double_click_waiting(self, value):
+        if value == getattr(self, '_click_action_double_click_waiting', False):
+            return
+        self._click_action_double_click_waiting = value
+        if value:
+            wait_time = Clutter.Settings.get_property('double-click-time')
+            glib.timeout_add(wait_time, self._click_on_double_click_wait_timer)
+    def _click_on_double_click_wait_timer(self, *args):
+        self.click_action_double_click_waiting = False
+        return False
+    def _on_click_button_release(self, actor, e):
+        if e.click_count == 1:
+            self.click_action_double_click_waiting = True
+        else:
+            self.click_action_double_click_waiting = False
+            self.trigger_action(action='click', type='double_click', btn=e.button, actor=self)
     def _on_click_click(self, action, actor):
+        if self.click_action_double_click_waiting:
+            return
         if action.get_button() == 1:
             btn = 'left'
         else:

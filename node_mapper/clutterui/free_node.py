@@ -114,6 +114,9 @@ class FreeNode(BaseObject):
                     self.has_touch = True
                     self.application.menu_context_obj = self
                     self.window.trigger_context_menu(id='node')
+            elif action_type == 'double_click':
+                self.has_touch = True
+                self.widget.text_box.enable_edit = True
         elif action == 'drag':
             if not self.dragging:
                 obj = self.find_child_touches()

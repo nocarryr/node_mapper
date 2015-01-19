@@ -10,10 +10,7 @@ class Actionable(object):
         
 class Clickable(Actionable):
     def init_actions(self, **kwargs):
-        a = Clutter.ClickAction.new()
-        self.add_action_with_name('click', a)
-        a.connect('clicked', self._on_click_click)
-        a.connect('long-press', self._on_click_long_press)
+        self.connect('button-press-event', self._on_click_button_press)
         self.connect('button-release-event', self._on_click_button_release)
         super(Clickable, self).init_actions(**kwargs)
     @property
@@ -27,44 +24,90 @@ class Clickable(Actionable):
         if value:
             settings = Clutter.Settings.get_default()
             wait_time = settings.get_property('double-click-time')
-            glib.timeout_add(wait_time, self._click_on_double_click_wait_timer)
-    def _click_on_double_click_wait_timer(self, *args):
-        self.click_action_double_click_waiting = False
-        return False
-    def _on_click_button_release(self, actor, e):
-        if e.click_count == 1:
-            self.click_action_double_click_waiting = True
+            e_id = glib.timeout_add(wait_time, self._click_on_double_click_wait_timer)
+            self._click_action_double_click_wait_event_id = e_id
         else:
-            self.click_action_double_click_waiting = False
-            self.trigger_action(action='click', type='double_click', btn=e.button, actor=self)
-    def _on_click_click(self, action, actor):
-        if self.click_action_double_click_waiting:
+            e_id = self._click_action_double_click_wait_event_id
+            if e_id is not None:
+                glib.source_remove(e_id)
+                self._click_action_double_click_wait_event_id = None
+            self._click_action_double_click_event = None
+    @property
+    def click_action_long_press_waiting(self):
+        return getattr(self, '_click_action_long_press_waiting', False)
+    @click_action_long_press_waiting.setter
+    def click_action_long_press_waiting(self, value):
+        if value == getattr(self, '_click_action_long_press_waiting', False):
             return
-        if action.get_button() == 1:
+        self._click_action_long_press_waiting = value
+        if value:
+            self._click_action_long_press_triggered = False
+            settings = Clutter.Settings.get_default()
+            wait_time = settings.get_property('long-press-duration')
+            e_id = glib.timeout_add(wait_time, self._click_on_long_press_wait_timer)
+            self._click_action_long_press_wait_event_id = e_id
+        else:
+            e_id = getattr(self, '_click_action_long_press_wait_event_id', None)
+            if e_id is not None:
+                glib.source_remove(e_id)
+                self._click_action_long_press_wait_event_id = None
+    def _click_on_double_click_wait_timer(self, *args):
+        self._click_action_double_click_wait_event_id = None
+        e = self._click_action_double_click_event
+        if e.button == 1:
             btn = 'left'
         else:
             btn = 'right'
-        self.trigger_action(action='click', type='click', btn=btn, actor=self)
-    def _on_click_long_press(self, action, actor, press_state):
-        if action.get_button() == 1:
+        self.click_action_double_click_waiting = False
+        self.trigger_action(action='click', 
+                            type='click', 
+                            btn=btn, 
+                            event=e, 
+                            actor=self)
+        return False
+    def _click_on_long_press_wait_timer(self, *args):
+        self._click_action_long_press_wait_event_id = None
+        self._click_action_long_press_triggered = True
+        self.click_action_long_press_waiting = False
+        btn = self._click_action_long_press_button
+        self.trigger_action(action='click', 
+                            type='long_press', 
+                            btn=btn, 
+                            state='activate', 
+                            actor=self) 
+        return False
+    def _on_click_button_press(self, actor, e):
+        if e.button == 1:
             btn = 'left'
         else:
             btn = 'right'
-        enum = Clutter.LongPressState
-        if press_state == enum.QUERY:
-            state = 'query'
-        elif press_state == enum.CANCEL:
-            state = 'cancel'
-        else:
-            state = 'activate'
         r = self.trigger_action(action='click', 
                                 type='long_press', 
                                 btn=btn, 
-                                state=state, 
+                                state='query', 
                                 actor=self)
-        if not isinstance(r, bool):
+        if r:
+            self._click_action_long_press_button = btn
+        self.click_action_long_press_waiting = r
+        if e.click_count == 1:
+            self.click_action_double_click_waiting = False
+            self._click_action_double_click_event = e
+            self.click_action_double_click_waiting = True
+        return False
+    def _on_click_button_release(self, actor, e):
+        self.click_action_long_press_waiting = False
+        if e.button == 1:
+            btn = 'left'
+        else:
+            btn = 'right'
+        if getattr(self, '_click_action_long_press_triggered', False):
+            self._click_action_long_press_triggered = False
+            self.click_action_double_click_waiting = False
             return True
-        return r
+        if e.click_count == 2:
+            self.click_action_double_click_waiting = False
+            self.trigger_action(action='click', type='double_click', btn=btn, actor=self)
+            return True
         
         
 class Dropable(Clickable):
@@ -170,8 +213,9 @@ class Dragable(Dropable):
                                 actor=self)
         if r:
             self.current_drag_actor = self
+            self.click_action_double_click_waiting = False
+            self.click_action_long_press_waiting = False
     def _on_drag_motion(self, action, actor, delta_x, delta_y):
-        self.get_action('click').release()
         if self.current_drag_actor is not self:
             return False
         x, y = action.get_motion_coords()

@@ -225,6 +225,8 @@
     <Source>node_mapper/nomadic_recording_lib/misc_scripts/rm_ssh_host.py</Source>
     <Source>node_mapper/clutterui/grid.py</Source>
     <Source>node_mapper/clutterui/menu.py</Source>
+    <Source>node_mapper/nomadic_recording_lib/misc_scripts/net_stats.py</Source>
+    <Source>node_mapper/nomadic_recording_lib/misc_scripts/plotly_net_stats.py</Source>
   </Sources>
   <Forms/>
   <Translations/>

@@ -154,11 +154,11 @@ class MainWindow(gtkBaseUI.BaseWindow):
         if e is None:
             e = clutter.get_current_event()
         if btn is None:
-            btn = e.get_button()
-        ts = e.get_time()
-        position = kwargs.get('position', e.get_coords())
+            btn = e.button
+        ts = e.time
+        position = kwargs.get('position', [e.x, e.y])
         event_kwargs['position'] = position
-        e_device = e.get_device()
+        e_device = e.device
         d_name = e_device.get_device_name()
         g_device = self.input_devices.find_by_name(d_name)
         self.context_menus.trigger_menu(id=menu_id, 

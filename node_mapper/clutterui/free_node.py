@@ -113,7 +113,7 @@ class FreeNode(BaseObject):
                         return
                     self.has_touch = True
                     self.application.menu_context_obj = self
-                    self.window.trigger_context_menu(id='node')
+                    self.window.trigger_context_menu(id='node', event=kwargs.get('event'))
             elif action_type == 'double_click':
                 self.has_touch = True
                 self.widget.text_box.enable_edit = True

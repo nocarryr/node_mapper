@@ -82,12 +82,14 @@ class TextBox(BaseObject):
     def on_enable_edit_set(self, **kwargs):
         value = kwargs.get('value')
         tw = self.text_widget
+        if value:
+            mainwin = self.GLOBAL_CONFIG['GUIApplication'].mainwindow
+            mainwin.scene.embed.grab_focus()
+            #mainwin.scene.embed.grab_add()
+            tw.grab_key_focus()
         tw.set_activatable(value)
         tw.set_selectable(value)
         tw.set_editable(value)
-        if value:
-            self.GLOBAL_CONFIG['GUIApplication'].mainwindow.scene.embed.grab_focus()
-            tw.grab_key_focus()
     def on_text_widget_activate(self, *args):
         if self.enable_edit:
             self.text = self.text_widget.get_text()

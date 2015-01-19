@@ -25,7 +25,8 @@ class Clickable(Actionable):
             return
         self._click_action_double_click_waiting = value
         if value:
-            wait_time = Clutter.Settings.get_property('double-click-time')
+            settings = Clutter.Settings.get_default()
+            wait_time = settings.get_property('double-click-time')
             glib.timeout_add(wait_time, self._click_on_double_click_wait_timer)
     def _click_on_double_click_wait_timer(self, *args):
         self.click_action_double_click_waiting = False
